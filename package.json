@@ -42,6 +42,7 @@
       "buildResources": "build",
       "output": "release"
     },
+    "afterPack": "./scripts/after-pack.cjs",
     "mac": {
       "category": "public.app-category.entertainment",
       "target": [

@@ -3,6 +3,7 @@
 // Special events inspired by lwu309/Scmpoo + eSheep64 XML animations
 
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { sfx } from './sound-fx';
 import sheepSprite from './assets/esheep64.png';
 import scmpoo110 from './assets/scmpoo110.png';
 import scmpoo111 from './assets/scmpoo111.png';
@@ -68,6 +69,11 @@ type SheepState =
   | 'sleep1a' | 'sleep1b' | 'sleep2a' | 'sleep2b'
   | 'fall' | 'drag' | 'graze' | 'seek'
   | 'bathtub'                        // relaxing in the tub (frames 160-162)
+  | 'pee'                            // the "poo" in Screen Mate Poo: pissa + pissb
+  | 'blink' | 'yawn_quirk' | 'baa' | 'sneeze' | 'amazed' | 'blush'   // idle quirks
+  | 'spin' | 'roll_move' | 'look_down' | 'turn_around'               // movement quirks
+  | 'jump_down'                      // deliberate leap off a surface (or mid-screen)
+  | 'land_soft' | 'land_hard'        // fall-intensity landing reactions
   | 'sit'                            // sitting cute (frames 32-35)
   | 'burn'                           // on fire! flies diagonally
   | 'boing'                          // bounce in place
@@ -95,16 +101,30 @@ const ANIMS: Record<SheepState, AnimDef> = {
     loop: false,
     next: () => {
       const r = Math.random();
-      if (r < 0.18) return 'walk';
-      if (r < 0.30) return 'run_begin';
-      if (r < 0.40) return 'graze';
-      if (r < 0.50) return 'sleep1a';
-      if (r < 0.58) return 'sleep2a';
-      if (r < 0.64) return 'sit';
-      if (r < 0.72) return 'poo_sit';
-      if (r < 0.80) return 'poo_yawn';
-      if (r < 0.88) return 'poo_sleep';
-      if (r < 0.94) return 'poo_roll';
+      if (r < 0.16) return 'walk';
+      if (r < 0.26) return 'run_begin';
+      if (r < 0.34) return 'graze';
+      if (r < 0.42) return 'sleep1a';
+      if (r < 0.48) return 'sleep2a';
+      if (r < 0.54) return 'sit';
+      if (r < 0.61) return 'poo_sit';
+      if (r < 0.68) return 'poo_yawn';
+      if (r < 0.75) return 'poo_sleep';
+      if (r < 0.81) return 'poo_roll';
+      if (r < 0.84) return 'pee';
+      // Idle quirks — small chances, blink the most common:
+      if (r < 0.88) return 'blink';
+      if (r < 0.90) return 'baa';
+      if (r < 0.92) return 'yawn_quirk';
+      if (r < 0.935) return 'sneeze';
+      if (r < 0.945) return 'amazed';
+      if (r < 0.955) return 'blush';
+      // Movement quirks — rarer still:
+      if (r < 0.965) return 'look_down';
+      if (r < 0.975) return 'turn_around';
+      if (r < 0.985) return 'spin';
+      if (r < 0.993) return 'roll_move';
+      if (r < 0.998) return 'jump_down';
       return 'idle';
     },
   },
@@ -180,6 +200,122 @@ const ANIMS: Record<SheepState, AnimDef> = {
       { idx: 3, ms: 300 }, { idx: 6, ms: 300 }, { idx: 7, ms: 400 },
       { idx: 8, ms: 500 }, { idx: 8, ms: 500 }, { idx: 8, ms: 500 },
       { idx: 7, ms: 400 }, { idx: 6, ms: 300 }, { idx: 3, ms: 400 },
+    ],
+    loop: false, vx: 0, next: () => 'idle',
+  },
+  pee: {
+    // The "poo" in Screen Mate Poo: pissa + pissb merged. Puddle prop grows under the sheep.
+    // pissa: squat down → hold posture. pissb: straighten up → walk off.
+    frames: [
+      { idx: 3, ms: 200 }, { idx: 12, ms: 200 }, { idx: 13, ms: 200 },
+      { idx: 103, ms: 200 }, { idx: 104, ms: 200 },
+      { idx: 105, ms: 220 }, { idx: 106, ms: 220 },
+      { idx: 105, ms: 220 }, { idx: 106, ms: 220 },
+      { idx: 105, ms: 220 }, { idx: 106, ms: 220 },
+      { idx: 104, ms: 200 }, { idx: 103, ms: 200 },
+      { idx: 13, ms: 180 }, { idx: 12, ms: 180 },
+    ],
+    loop: false, vx: 0, next: () => 'idle',
+  },
+  // ── Idle quirks ──────────────────────────────────────────────────────────
+  blink: {
+    // Quick eye-close. Subtle, no speech bubble.
+    frames: [{ idx: 3, ms: 80 }, { idx: 6, ms: 120 }, { idx: 3, ms: 80 }],
+    loop: false, vx: 0, next: () => 'idle',
+  },
+  yawn_quirk: {
+    // Sheep yawns — uses sleep-pose frames with a speech bubble fired separately.
+    frames: [
+      { idx: 3, ms: 150 }, { idx: 6, ms: 140 }, { idx: 7, ms: 200 },
+      { idx: 8, ms: 450 }, { idx: 7, ms: 180 }, { idx: 6, ms: 140 }, { idx: 3, ms: 180 },
+    ],
+    loop: false, vx: 0, next: () => 'idle',
+  },
+  baa: {
+    // Stand tall and call out. The speech bubble carries the joke.
+    frames: [{ idx: 3, ms: 220 }, { idx: 6, ms: 140 }, { idx: 3, ms: 520 }],
+    loop: false, vx: 0, next: () => 'idle',
+  },
+  sneeze: {
+    // Brace, compress, bounce back — wind-up then recoil.
+    frames: [
+      { idx: 3, ms: 160 }, { idx: 6, ms: 140 },
+      { idx: 62, ms: 80 }, { idx: 63, ms: 80 }, { idx: 64, ms: 80 }, { idx: 65, ms: 80 },
+      { idx: 3, ms: 300 },
+    ],
+    loop: false, vx: 0, next: () => 'idle',
+  },
+  amazed: {
+    // Holds a wide-eyed pose while a "⁉" bubble shows. Tiny wobble via the sit frame set.
+    frames: [
+      { idx: 3, ms: 180 }, { idx: 32, ms: 420 }, { idx: 33, ms: 160 },
+      { idx: 32, ms: 360 }, { idx: 3, ms: 260 },
+    ],
+    loop: false, vx: 0, next: () => 'idle',
+  },
+  blush: {
+    // Pink tint applied via render filter; sheep stands with a subtle sway.
+    frames: [
+      { idx: 3, ms: 280 }, { idx: 6, ms: 140 }, { idx: 3, ms: 320 },
+      { idx: 6, ms: 140 }, { idx: 3, ms: 340 },
+    ],
+    loop: false, vx: 0, next: () => 'idle',
+  },
+  // ── Movement quirks ──────────────────────────────────────────────────────
+  spin: {
+    // Stationary pirouette — CSS rotation driven by rotStartTsRef over 800ms.
+    frames: [
+      { idx: 3, ms: 100 }, { idx: 3, ms: 100 }, { idx: 3, ms: 100 }, { idx: 3, ms: 100 },
+      { idx: 3, ms: 100 }, { idx: 3, ms: 100 }, { idx: 3, ms: 100 }, { idx: 3, ms: 100 },
+    ],
+    loop: false, vx: 0, next: () => 'idle',
+  },
+  roll_move: {
+    // Rolls along the ground in the facing direction. 2 full rotations in ~1.4s.
+    frames: [
+      { idx: 3, ms: 100 }, { idx: 3, ms: 100 }, { idx: 3, ms: 100 }, { idx: 3, ms: 100 },
+      { idx: 3, ms: 100 }, { idx: 3, ms: 100 }, { idx: 3, ms: 100 }, { idx: 3, ms: 100 },
+      { idx: 3, ms: 100 }, { idx: 3, ms: 100 }, { idx: 3, ms: 100 }, { idx: 3, ms: 100 },
+      { idx: 3, ms: 100 }, { idx: 3, ms: 100 },
+    ],
+    loop: false, vx: 1.2, next: () => 'idle',
+  },
+  look_down: {
+    // Sheep reaches down to inspect something on the ground. Pose held ~1.4s.
+    frames: [
+      { idx: 3, ms: 180 }, { idx: 58, ms: 320 }, { idx: 58, ms: 400 },
+      { idx: 58, ms: 320 }, { idx: 3, ms: 220 },
+    ],
+    loop: false, vx: 0, next: () => 'idle',
+  },
+  turn_around: {
+    // Pivot through the front-facing sit pose (frames 32/33) then face the opposite way.
+    // Direction flip is triggered when this state completes (see frame-animation dispatch).
+    frames: [
+      { idx: 3, ms: 140 }, { idx: 32, ms: 160 }, { idx: 33, ms: 180 },
+      { idx: 32, ms: 160 }, { idx: 3, ms: 160 },
+    ],
+    loop: false, vx: 0, next: () => 'idle',
+  },
+  jump_down: {
+    // Windup (frames 0-3) holds position; launch velocity kicks in at frame 4.
+    // Floor-collision intercepts the airborne frame and routes to land_soft/land_hard.
+    frames: [
+      { idx: 62, ms: 80 }, { idx: 63, ms: 80 }, { idx: 64, ms: 90 },
+      { idx: 46, ms: 70 }, { idx: 133, ms: 2500 },
+    ],
+    loop: false, vx: 0, next: () => 'idle',
+  },
+  land_soft: {
+    // Quick compression recovery — used for moderate drops.
+    frames: [{ idx: 65, ms: 110 }, { idx: 66, ms: 110 }, { idx: 3, ms: 220 }],
+    loop: false, vx: 0, next: () => 'idle',
+  },
+  land_hard: {
+    // Splat + stun + recover. Dust-puff prop is spawned alongside.
+    frames: [
+      { idx: 70, ms: 120 }, { idx: 70, ms: 220 }, { idx: 70, ms: 180 },
+      { idx: 66, ms: 160 }, { idx: 64, ms: 140 }, { idx: 6, ms: 180 }, { idx: 3, ms: 240 },
     ],
     loop: false, vx: 0, next: () => 'idle',
   },
@@ -298,9 +434,10 @@ interface UfoDisplay {
 }
 interface AlienDisplay { x: number; y: number; frame: number; }
 
-interface DesktopPetProps { visible: boolean; }
+interface WinRect { x: number; y: number; w: number; h: number }
+interface DesktopPetProps { visible: boolean; speedMultiplier?: number; windowRect?: WinRect | null; }
 
-export default function DesktopPet({ visible }: DesktopPetProps) {
+export default function DesktopPet({ visible, speedMultiplier = 1, windowRect = null }: DesktopPetProps) {
   // ── Main sheep physics refs ─────────────────────────────────────────────
   const posRef = useRef({ x: 200, y: -RENDER_H });
   const velRef = useRef({ x: 0, y: 0 });
@@ -312,6 +449,11 @@ export default function DesktopPet({ visible }: DesktopPetProps) {
   const dragRef = useRef(false);
   const dragOffRef = useRef({ x: 0, y: 0 });
   const velHistRef = useRef<{ x: number; y: number }[]>([]);
+  const speedMulRef = useRef(1);
+  useEffect(() => { speedMulRef.current = speedMultiplier; }, [speedMultiplier]);
+  const windowRectRef = useRef<WinRect | null>(null);
+  useEffect(() => { windowRectRef.current = windowRect; }, [windowRect]);
+  const onWindowRef = useRef(false); // sheep currently standing on a window titlebar
 
   // ── Flower refs ─────────────────────────────────────────────────────────
   const flowerRef = useRef<{ x: number; y: number; frame: number } | null>(null);
@@ -336,12 +478,20 @@ export default function DesktopPet({ visible }: DesktopPetProps) {
   const [displayDir, setDisplayDir] = useState<1 | -1>(1);
   const [flower, setFlower] = useState<{ x: number; y: number; frame: number } | null>(null);
   const [flowerEating, setFlowerEating] = useState(false);
-  const [bathtubProp, setBathtubProp] = useState<{ x: number; y: number; frame: number } | null>(null);
+  const [bathtubProp, setBathtubProp] = useState<{ x: number; y: number; frame: number; splash?: boolean } | null>(null);
   const bathtubPropRef = useRef<{ x: number; y: number; frame: number; startTs: number; splash?: boolean } | null>(null);
+  const [puddle, setPuddle] = useState<{ x: number; y: number; w: number; h: number; alpha: number } | null>(null);
+  const puddleRef = useRef<{ x: number; y: number; startTs: number } | null>(null);
   const [secondSheepDisplay, setSecondSheepDisplay] = useState<SecondSheep | null>(null);
   const [alienDisplay, setAlienDisplay] = useState<AlienDisplay | null>(null);
   const [ufoDisplay, setUfoDisplay] = useState<UfoDisplay | null>(null);
   const [flipY, setFlipY] = useState(false); // used during top_walk
+  const rotStartTsRef = useRef(0);
+  const [displayRot, setDisplayRot] = useState(0); // spin/roll rotation in degrees
+  const fallStartYRef = useRef(0);
+  const jumpLaunchedRef = useRef(false);
+  const dustPuffRef = useRef<{ x: number; y: number; startTs: number } | null>(null);
+  const [dustPuff, setDustPuff] = useState<{ x: number; y: number; scale: number; alpha: number } | null>(null);
 
   // ── Scmpoo companion animations ─────────────────────────────────────────
   const pooRef = useRef<{ sheet: string; frames: number[]; frameDuration: number; startTs: number } | null>(null);
@@ -387,6 +537,18 @@ export default function DesktopPet({ visible }: DesktopPetProps) {
       vel.x = 0;
     }
     if (flip) { dirRef.current = dirRef.current === 1 ? -1 : 1; vel.x = -vel.x; }
+
+    // Kick off rotation clock when entering spin/roll via a normal transition
+    if (resolved === 'spin' || resolved === 'roll_move') {
+      rotStartTsRef.current = performance.now();
+    }
+
+    // Jump-down windup state needs a clean launch flag and fall-height anchor
+    if (resolved === 'jump_down') {
+      jumpLaunchedRef.current = false;
+      fallStartYRef.current = posRef.current.y;
+      vel.x = 0; vel.y = 0;
+    }
 
     // Spawn bathtub prop when entering bathtub state from idle
     if (resolved === 'bathtub') {
@@ -444,6 +606,7 @@ export default function DesktopPet({ visible }: DesktopPetProps) {
     stateRef.current = 'burn';
     frameIdxRef.current = 0;
     loopCycleRef.current = 0;
+    sfx.burnLand();
   }, []);
 
   const triggerBoing = useCallback(() => {
@@ -451,6 +614,124 @@ export default function DesktopPet({ visible }: DesktopPetProps) {
     velRef.current.x = 0;
     frameIdxRef.current = 0;
     loopCycleRef.current = 0;
+    sfx.boing();
+  }, []);
+
+  const triggerQuirk = useCallback((quirk: 'blink' | 'yawn_quirk' | 'baa' | 'sneeze' | 'amazed' | 'blush') => {
+    const blocked: SheepState[] = ['drag', 'fall', 'burn', 'ufo_caught', 'climb_up', 'top_walk', 'climb_down', 'pee', 'boing'];
+    if (blocked.includes(stateRef.current)) return;
+    stateRef.current = quirk;
+    velRef.current.x = 0;
+    frameIdxRef.current = 0;
+    loopCycleRef.current = 0;
+    const say = window.sheepSay?.say;
+    if (!say) return;
+    switch (quirk) {
+      case 'yawn_quirk': say({ text: '*yawn*', emoji: '😴', tint: 'neutral', durationMs: 2200 }); break;
+      case 'baa':        say({ text: 'baa.', emoji: '🐑', tint: 'neutral', durationMs: 1800 }); sfx.baa(); break;
+      case 'sneeze':     say({ text: 'ACHOO!', emoji: '🤧', tint: 'neutral', durationMs: 1600 }); sfx.sneeze(); break;
+      case 'amazed':     say({ text: '!?', emoji: '✨', tint: 'neutral', durationMs: 1600 }); break;
+      case 'blush':      say({ text: '…', emoji: '💗', tint: 'neutral', durationMs: 1800 }); break;
+      // blink has no bubble
+    }
+  }, []);
+
+  const triggerEatFile = useCallback((filename: string) => {
+    const blocked: SheepState[] = [
+      'drag', 'fall', 'burn', 'ufo_caught', 'climb_up', 'top_walk', 'climb_down',
+      'climb_prep', 'pee', 'boing', 'blacksheep', 'bathtub', 'jump_down',
+      'land_hard', 'land_soft',
+    ];
+    if (blocked.includes(stateRef.current)) return;
+    stateRef.current = 'graze';
+    velRef.current.x = 0;
+    frameIdxRef.current = 0;
+    loopCycleRef.current = 0;
+    nextFrameTimeRef.current = performance.now();
+    const ext = (filename.split('.').pop() ?? '').toLowerCase();
+    const reactions: Record<string, { text: string; emoji: string }> = {
+      pdf:  { text: 'Crunchy PDF — needs salt.',   emoji: '📄' },
+      png:  { text: 'Pixels. Tastes like pixels.', emoji: '🖼️' },
+      jpg:  { text: 'Lightly compressed, nice.',   emoji: '🖼️' },
+      jpeg: { text: 'Lightly compressed, nice.',   emoji: '🖼️' },
+      gif:  { text: 'Wiggly snack!',                emoji: '🎞️' },
+      svg:  { text: 'Vector fibre — chewy.',        emoji: '✏️' },
+      mp4:  { text: 'Cinematic fibre.',             emoji: '🎬' },
+      mov:  { text: 'Cinematic fibre.',             emoji: '🎬' },
+      mp3:  { text: 'Mmm, mouth-music.',            emoji: '🎵' },
+      wav:  { text: 'Mmm, mouth-music.',            emoji: '🎵' },
+      js:   { text: 'Tastes async.',                emoji: '🧃' },
+      ts:   { text: 'Typed and tasty.',             emoji: '🥖' },
+      tsx:  { text: 'JSX chew toy.',                emoji: '🧀' },
+      jsx:  { text: 'JSX chew toy.',                emoji: '🧀' },
+      json: { text: 'Crunchy braces.',              emoji: '🥨' },
+      md:   { text: 'Marked down, marked up.',      emoji: '📝' },
+      txt:  { text: 'Plain oats.',                  emoji: '🌾' },
+      html: { text: 'Tag salad.',                   emoji: '🥗' },
+      css:  { text: 'Styled snack.',                emoji: '💅' },
+      zip:  { text: 'Compressed. Burp.',            emoji: '💨' },
+      dmg:  { text: 'Binary apples.',               emoji: '💿' },
+      app:  { text: 'Heavy meal.',                  emoji: '📦' },
+      py:   { text: 'Slithers down nicely.',        emoji: '🐍' },
+      go:   { text: 'Gopher flavoured.',            emoji: '🐹' },
+      rs:   { text: 'Rusty aftertaste.',            emoji: '🦀' },
+      sh:   { text: 'Shell. Chewy.',                emoji: '🐚' },
+      sql:  { text: 'DROP TABLE snack;',             emoji: '🗃️' },
+    };
+    const pick = reactions[ext] ?? {
+      text: ext ? `Weird — tastes like .${ext}.` : 'Uh. Mystery snack.',
+      emoji: '🍽️',
+    };
+    window.sheepSay?.say({ ...pick, tint: 'neutral', durationMs: 4000 });
+  }, []);
+
+  const triggerJumpDown = useCallback(() => {
+    const blocked: SheepState[] = [
+      'drag', 'fall', 'burn', 'ufo_caught', 'climb_up', 'top_walk', 'climb_down',
+      'climb_prep', 'pee', 'boing', 'blacksheep', 'bathtub', 'jump_down',
+    ];
+    if (blocked.includes(stateRef.current)) return;
+    stateRef.current = 'jump_down';
+    frameIdxRef.current = 0;
+    loopCycleRef.current = 0;
+    velRef.current.x = 0;
+    velRef.current.y = 0;
+    jumpLaunchedRef.current = false;
+    fallStartYRef.current = posRef.current.y;
+  }, []);
+
+  const triggerMovementQuirk = useCallback((kind: 'spin' | 'roll_move' | 'look_down' | 'turn_around') => {
+    const blocked: SheepState[] = [
+      'drag', 'fall', 'burn', 'ufo_caught', 'climb_up', 'top_walk', 'climb_down',
+      'climb_prep', 'pee', 'boing', 'blacksheep', 'bathtub',
+    ];
+    if (blocked.includes(stateRef.current)) return;
+    stateRef.current = kind;
+    const animVx = ANIMS[kind].vx;
+    velRef.current.x = animVx !== undefined ? animVx * dirRef.current : 0;
+    frameIdxRef.current = 0;
+    loopCycleRef.current = 0;
+    if (kind === 'spin' || kind === 'roll_move') {
+      rotStartTsRef.current = performance.now();
+    }
+    if (kind === 'look_down') {
+      window.sheepSay?.say({ text: '…hm?', emoji: '👀', tint: 'neutral', durationMs: 1600 });
+    }
+  }, []);
+
+  const triggerPee = useCallback(() => {
+    const blocked: SheepState[] = ['drag', 'fall', 'burn', 'ufo_caught', 'climb_up', 'top_walk', 'climb_down', 'pee'];
+    if (blocked.includes(stateRef.current)) return;
+    stateRef.current = 'pee';
+    velRef.current.x = 0;
+    frameIdxRef.current = 0;
+    loopCycleRef.current = 0;
+    // Puddle anchors at the sheep's feet, slightly behind (trailing the facing direction).
+    const feetX = posRef.current.x + RENDER_W / 2 - (dirRef.current === 1 ? 12 : -12);
+    const feetY = posRef.current.y + RENDER_H - 4;
+    puddleRef.current = { x: feetX, y: feetY, startTs: performance.now() };
+    // Trickle sound starts when the pee squat begins; trigger sfx after the prep phase.
+    setTimeout(() => sfx.pee(), 800);
   }, []);
 
   const triggerClimb = useCallback(() => {
@@ -492,6 +773,7 @@ export default function DesktopPet({ visible }: DesktopPetProps) {
       alienWaveStart: 0,
     };
     setUfoDisplay({ x: ufoRef.current.x, y: ufoRef.current.y, beamH: 0, phase: 'descend', ufoFrame: 0 });
+    sfx.ufoHum();
   }, []);
 
   const triggerAlienEncounter = useCallback(() => {
@@ -511,6 +793,7 @@ export default function DesktopPet({ visible }: DesktopPetProps) {
       alienWaveStart: 0,
     };
     setUfoDisplay({ x: ufoRef.current.x, y: ufoRef.current.y, beamH: 0, phase: 'descend', ufoFrame: 0 });
+    sfx.ufoHum();
   }, []);
 
   const triggerPooState = useCallback((state: 'poo_sleep' | 'poo_sit' | 'poo_yawn' | 'poo_roll') => {
@@ -616,6 +899,7 @@ export default function DesktopPet({ visible }: DesktopPetProps) {
           vel.y = -3;
           stateRef.current = 'fall';
           frameIdxRef.current = 0;
+          fallStartYRef.current = pos.y;
           ufo.phase = 'depart';
           setUfoDisplay({ x: ufo.x, y: ufo.y, beamH: 0, phase: 'depart', ufoFrame: ufoSaucerFrame });
         }
@@ -668,6 +952,55 @@ export default function DesktopPet({ visible }: DesktopPetProps) {
       }
     }
 
+    // ── Puddle animation ──────────────────────────────────────────────────
+    const pd = puddleRef.current;
+    if (pd) {
+      const elapsed = ts - pd.startTs;
+      const PEE_PREP_MS = 800;
+      const PEE_GROW_MS = 2000;
+      const PEE_HOLD_MS = 5000;
+      const PEE_FADE_MS = 4000;
+      const MAX_W = 36;
+      const MAX_H = 7;
+      let w = 0, h = 0, alpha = 0;
+      if (elapsed < PEE_PREP_MS) {
+        w = 0; h = 0; alpha = 0;
+      } else if (elapsed < PEE_PREP_MS + PEE_GROW_MS) {
+        const g = (elapsed - PEE_PREP_MS) / PEE_GROW_MS;
+        w = MAX_W * g; h = MAX_H * g; alpha = 0.85;
+      } else if (elapsed < PEE_PREP_MS + PEE_GROW_MS + PEE_HOLD_MS) {
+        w = MAX_W; h = MAX_H; alpha = 0.85;
+      } else if (elapsed < PEE_PREP_MS + PEE_GROW_MS + PEE_HOLD_MS + PEE_FADE_MS) {
+        const f = (elapsed - PEE_PREP_MS - PEE_GROW_MS - PEE_HOLD_MS) / PEE_FADE_MS;
+        w = MAX_W; h = MAX_H; alpha = 0.85 * (1 - f);
+      } else {
+        puddleRef.current = null;
+        setPuddle(null);
+      }
+      if (puddleRef.current) {
+        setPuddle({ x: pd.x, y: pd.y, w, h, alpha });
+      }
+    }
+
+    // ── Dust puff (hard landing) ──────────────────────────────────────────
+    const dust = dustPuffRef.current;
+    if (dust) {
+      const elapsed = ts - dust.startTs;
+      const LIFE_MS = 700;
+      if (elapsed >= LIFE_MS) {
+        dustPuffRef.current = null;
+        setDustPuff(null);
+      } else {
+        const p = elapsed / LIFE_MS;
+        setDustPuff({
+          x: dust.x,
+          y: dust.y,
+          scale: 1 + p * 2.2,
+          alpha: 0.65 * (1 - p),
+        });
+      }
+    }
+
     // ── Bathtub prop animation ─────────────────────────────────────────────
     const btProp = bathtubPropRef.current;
     if (btProp) {
@@ -679,7 +1012,7 @@ export default function DesktopPet({ visible }: DesktopPetProps) {
         : (elapsed < 400 ? 2 : elapsed < 900 ? 3 : 4);
       if (newFrame !== btProp.frame) {
         btProp.frame = newFrame;
-        setBathtubProp({ x: btProp.x, y: btProp.y, frame: newFrame });
+        setBathtubProp({ x: btProp.x, y: btProp.y, frame: newFrame, splash: btProp.splash });
       }
       if (elapsed > 3500) {
         bathtubPropRef.current = null;
@@ -828,37 +1161,121 @@ export default function DesktopPet({ visible }: DesktopPetProps) {
       stateRef.current = 'idle'; vel.x = 0; frameIdxRef.current = 0;
     }
 
+    // ── Jump-down windup / launch ─────────────────────────────────────────
+    if (stateRef.current === 'jump_down') {
+      if (frameIdxRef.current < 4) {
+        // Windup poses — hold in place
+        vel.x = 0; vel.y = 0;
+      } else if (!jumpLaunchedRef.current) {
+        jumpLaunchedRef.current = true;
+        vel.x = 2.2 * dirRef.current;
+        vel.y = -7;
+        fallStartYRef.current = pos.y;
+      }
+    }
+
     // ── Gravity ───────────────────────────────────────────────────────────
     if (stateRef.current === 'fall') {
       vel.y = Math.min(vel.y + 0.4, 10);
     } else if (stateRef.current === 'burn') {
       vel.y = Math.min(vel.y + 0.18, 5); // slower arc for burn — more hang time
+    } else if (stateRef.current === 'jump_down' && jumpLaunchedRef.current) {
+      vel.y = Math.min(vel.y + 0.4, 10);
     }
 
     // ── Apply velocity ────────────────────────────────────────────────────
-    pos.x += vel.x;
+    pos.x += vel.x * speedMulRef.current;
     pos.y += vel.y;
 
     // ── Floor collision ───────────────────────────────────────────────────
     const isClimbing = ['climb_up', 'top_walk', 'climb_down', 'climb_prep', 'ufo_caught'].includes(stateRef.current);
-    if (!isClimbing && pos.y >= H - RENDER_H) {
-      pos.y = H - RENDER_H;
-      vel.y = 0;
-      if (stateRef.current === 'fall' || stateRef.current === 'drag') {
-        vel.x = 0;
-        stateRef.current = 'idle';
+
+    // Resolve effective floor: the window titlebar wins over the world floor
+    // when the sheep is horizontally above it and either (a) already standing
+    // on it or (b) falling down onto it from above.
+    const worldFloorY = H - RENDER_H;
+    const win = windowRectRef.current;
+    const centerX = pos.x + RENDER_W / 2;
+    let floorY = worldFloorY;
+    let floorOnWindow = false;
+    if (win) {
+      const winTopY = win.y - RENDER_H;
+      const overX = centerX >= win.x + 6 && centerX <= win.x + win.w - 6;
+      const validWin = winTopY > 8 && winTopY < worldFloorY;
+      if (validWin && overX) {
+        if (onWindowRef.current) {
+          floorY = winTopY;
+          floorOnWindow = true;
+        } else {
+          const prevY = pos.y - vel.y;
+          const cameFromAbove = prevY + RENDER_H <= win.y + 2;
+          // If the sheep is released from a drag such that its bottom is inside
+          // the titlebar band (within ~30px of window top), snap it to sit on
+          // the titlebar even though it isn't strictly "above" the window.
+          const bottomY = pos.y + RENDER_H;
+          const inTitlebarBand = bottomY >= win.y - 2 && bottomY <= win.y + 30;
+          const fallingState = stateRef.current === 'fall'
+            || stateRef.current === 'burn'
+            || (stateRef.current === 'jump_down' && jumpLaunchedRef.current);
+          if ((fallingState && cameFromAbove) || (fallingState && inTitlebarBand)) {
+            floorY = winTopY;
+            floorOnWindow = true;
+          }
+        }
+      }
+    }
+
+    // Walked off the window titlebar (or window disappeared) while grounded
+    if (!isClimbing && onWindowRef.current && !floorOnWindow) {
+      const groundedStates: SheepState[] = [
+        'idle','walk','sit','sleep1a','sleep2a','graze','seek','boing',
+        'blink','yawn_quirk','baa','sneeze','amazed','blush',
+        'spin','roll_move','look_down','turn_around','land_soft','land_hard',
+      ];
+      if (groundedStates.includes(stateRef.current)) {
+        onWindowRef.current = false;
+        stateRef.current = 'fall';
+        fallStartYRef.current = pos.y;
         frameIdxRef.current = 0;
         loopCycleRef.current = 0;
-      } else if (stateRef.current === 'burn') {
-        // Sheep lands — spawn the bathtub prop to douse the fire
         vel.x = 0;
-        stateRef.current = 'idle';
+      }
+    }
+
+    if (!isClimbing && pos.y >= floorY) {
+      pos.y = floorY;
+      vel.y = 0;
+      const landed = stateRef.current === 'fall'
+        || stateRef.current === 'drag'
+        || (stateRef.current === 'jump_down' && jumpLaunchedRef.current);
+      const wasOnWindow = onWindowRef.current;
+      onWindowRef.current = floorOnWindow;
+      if (landed) {
+        vel.x = 0;
+        const drop = pos.y - fallStartYRef.current;
+        if (drop >= 220) {
+          stateRef.current = 'land_hard';
+          dustPuffRef.current = { x: pos.x + RENDER_W / 2, y: pos.y + RENDER_H - 2, startTs: ts };
+          sfx.thud();
+        } else if (drop >= 60) {
+          stateRef.current = 'land_soft';
+        } else {
+          stateRef.current = 'idle';
+        }
+        frameIdxRef.current = 0;
+        loopCycleRef.current = 0;
+        jumpLaunchedRef.current = false;
+      } else if (stateRef.current === 'burn' && !floorOnWindow && !wasOnWindow) {
+        // Sheep lands — splash into the filling tub and lounge there until the soak ends.
+        vel.x = 0;
+        stateRef.current = 'bathtub';
         frameIdxRef.current = 0;
         loopCycleRef.current = 0;
         const btX = Math.max(0, Math.min(W - S_FW - 4, pos.x - S_FW / 4));
         const btY = H - S_FH;
         bathtubPropRef.current = { x: btX, y: btY, frame: 3, startTs: ts, splash: true };
-        setBathtubProp({ x: btX, y: btY, frame: 3 });
+        setBathtubProp({ x: btX, y: btY, frame: 3, splash: true });
+        sfx.splash();
       }
     }
 
@@ -887,7 +1304,11 @@ export default function DesktopPet({ visible }: DesktopPetProps) {
           }
         } else {
           const next = anim.next?.() ?? 'idle';
-          const flip = !['graze', 'seek', 'blacksheep', 'boing', 'climb_up', 'top_walk', 'climb_down'].includes(next) && Math.random() < 0.35;
+          const wasTurning = stateRef.current === 'turn_around';
+          const flip = wasTurning
+            ? true
+            : !['graze', 'seek', 'blacksheep', 'boing', 'climb_up', 'top_walk', 'climb_down'].includes(next)
+                && Math.random() < 0.35;
           applyTransition(next, flip, vel);
         }
       }
@@ -900,6 +1321,16 @@ export default function DesktopPet({ visible }: DesktopPetProps) {
 
     setDisplayPos({ x: pos.x, y: pos.y });
     setDisplayDir(dirRef.current);
+
+    // Spin / roll rotation — progress from 0 to totalDeg over the animation duration.
+    if (stateRef.current === 'spin' || stateRef.current === 'roll_move') {
+      const DURATION = stateRef.current === 'spin' ? 800 : 1400;
+      const totalDeg = stateRef.current === 'spin' ? 360 : 720;
+      const p = Math.min(1, (ts - rotStartTsRef.current) / DURATION);
+      setDisplayRot(p * totalDeg * dirRef.current);
+    } else {
+      setDisplayRot(0);
+    }
 
     // Report sheep bounds to Electron main so it can toggle click-through.
     // Slight inflation so the hover hit-area feels generous.
@@ -918,6 +1349,60 @@ export default function DesktopPet({ visible }: DesktopPetProps) {
     return () => cancelAnimationFrame(rafRef.current);
   }, [visible, tick]);
 
+  // File-drop eat interaction
+  useEffect(() => {
+    if (!visible) return;
+    let dragNoticed = false;
+    const nearSheep = (cx: number, cy: number) => {
+      const sx = posRef.current.x + RENDER_W / 2;
+      const sy = posRef.current.y + RENDER_H / 2;
+      const dx = cx - sx, dy = cy - sy;
+      return (dx * dx + dy * dy) < 160 * 160;
+    };
+    const hasFiles = (dt: DataTransfer | null) => {
+      if (!dt) return false;
+      for (const t of Array.from(dt.types)) {
+        if (t === 'Files' || t === 'application/x-moz-file') return true;
+      }
+      return false;
+    };
+    const onDragOver = (e: DragEvent) => {
+      if (!hasFiles(e.dataTransfer)) return;
+      e.preventDefault();                            // required to allow drop
+      if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+      if (!dragNoticed && nearSheep(e.clientX, e.clientY)) {
+        dragNoticed = true;
+        window.sheepSay?.say({ text: '…oh?', emoji: '👀', tint: 'neutral', durationMs: 1500 });
+      }
+    };
+    const onDragLeave = (e: DragEvent) => {
+      // Fires when leaving a target; reset only when leaving the window entirely
+      if (e.clientX <= 0 || e.clientY <= 0 || e.clientX >= window.innerWidth || e.clientY >= window.innerHeight) {
+        dragNoticed = false;
+      }
+    };
+    const onDragEnd = () => { dragNoticed = false; };
+    const onDrop = (e: DragEvent) => {
+      if (!hasFiles(e.dataTransfer)) return;
+      e.preventDefault();
+      dragNoticed = false;
+      if (!nearSheep(e.clientX, e.clientY)) return;
+      const files = e.dataTransfer ? Array.from(e.dataTransfer.files) : [];
+      if (files.length === 0) return;
+      triggerEatFile(files[0].name);
+    };
+    window.addEventListener('dragover', onDragOver);
+    window.addEventListener('dragleave', onDragLeave);
+    window.addEventListener('dragend', onDragEnd);
+    window.addEventListener('drop', onDrop);
+    return () => {
+      window.removeEventListener('dragover', onDragOver);
+      window.removeEventListener('dragleave', onDragLeave);
+      window.removeEventListener('dragend', onDragEnd);
+      window.removeEventListener('drop', onDrop);
+    };
+  }, [visible, triggerEatFile]);
+
   useEffect(() => {
     if (!visible) return;
     const onJump = () => {
@@ -926,6 +1411,7 @@ export default function DesktopPet({ visible }: DesktopPetProps) {
       if (!['climb_up', 'top_walk', 'climb_down', 'ufo_caught', 'bathtub'].includes(stateRef.current)) {
         stateRef.current = 'fall';
         frameIdxRef.current = 0;
+        fallStartYRef.current = posRef.current.y;
       }
     };
     window.addEventListener('sheep-jump', onJump);
@@ -965,6 +1451,18 @@ export default function DesktopPet({ visible }: DesktopPetProps) {
       sit:        () => triggerPooState('poo_sit'),
       yawn:       () => triggerPooState('poo_yawn'),
       roll:       () => triggerPooState('poo_roll'),
+      pee:        triggerPee,
+      blink:      () => triggerQuirk('blink'),
+      yawnQuirk:  () => triggerQuirk('yawn_quirk'),
+      baa:        () => triggerQuirk('baa'),
+      sneeze:     () => triggerQuirk('sneeze'),
+      amazed:     () => triggerQuirk('amazed'),
+      blush:      () => triggerQuirk('blush'),
+      spin:       () => triggerMovementQuirk('spin'),
+      rollMove:   () => triggerMovementQuirk('roll_move'),
+      lookDown:   () => triggerMovementQuirk('look_down'),
+      turnAround: () => triggerMovementQuirk('turn_around'),
+      jumpDown:   triggerJumpDown,
       flower:     () => {
         const x = RENDER_W + Math.random() * (window.innerWidth - RENDER_W * 3);
         const y = window.innerHeight - RENDER_H;
@@ -974,6 +1472,16 @@ export default function DesktopPet({ visible }: DesktopPetProps) {
       },
       jump:       () => window.dispatchEvent(new CustomEvent('sheep-jump')),
       random:     triggerSpecialEvent,
+      getBounds:  () => ({ x: posRef.current.x, y: posRef.current.y, w: RENDER_W, h: RENDER_H }),
+      forceSleep: () => {
+        if (dragRef.current) return;
+        const blocked: SheepState[] = ['drag', 'fall', 'ufo_caught', 'burn', 'climb_up', 'top_walk', 'climb_down'];
+        if (blocked.includes(stateRef.current)) return;
+        stateRef.current = 'sleep1a';
+        velRef.current.x = 0;
+        frameIdxRef.current = 0;
+        loopCycleRef.current = 0;
+      },
     };
     console.log('%c🐑 Sheep console commands ready', 'color: #00e5ff; font-weight: bold');
     console.log('  sheep.burn()       — on fire');
@@ -988,9 +1496,14 @@ export default function DesktopPet({ visible }: DesktopPetProps) {
     console.log('  sheep.pee()        — peeing (scmpoo108)');
     console.log('  sheep.flower()     — spawn a flower');
     console.log('  sheep.jump()       — jump');
+    console.log('  sheep.spin()       — pirouette in place');
+    console.log('  sheep.rollMove()   — roll along the ground');
+    console.log('  sheep.lookDown()   — inspect the ground');
+    console.log('  sheep.turnAround() — pivot to face the other way');
+    console.log('  sheep.jumpDown()   — windup + leap (landing intensity varies with drop height)');
     console.log('  sheep.random()     — random special event');
     return () => { delete (window as any).sheep; };
-  }, [visible, triggerBurn, triggerBoing, triggerClimb, triggerBlacksheep, triggerUFO, triggerAlienEncounter, triggerPooState, triggerSpecialEvent]);
+  }, [visible, triggerBurn, triggerBoing, triggerClimb, triggerBlacksheep, triggerUFO, triggerAlienEncounter, triggerPooState, triggerSpecialEvent, triggerPee, triggerQuirk, triggerMovementQuirk, triggerJumpDown]);
 
   // Special events timer
   useEffect(() => {
@@ -1004,6 +1517,7 @@ export default function DesktopPet({ visible }: DesktopPetProps) {
 
   // ── Drag handler ─────────────────────────────────────────────────────────
   const onMouseDown = useCallback((e: React.MouseEvent) => {
+    if (e.button !== 0) return; // only left-click drags; right-click handled by onContextMenu
     e.preventDefault();
     dragRef.current = true;
     stateRef.current = 'drag';
@@ -1029,6 +1543,7 @@ export default function DesktopPet({ visible }: DesktopPetProps) {
       }
       stateRef.current = 'fall';
       frameIdxRef.current = 0;
+      fallStartYRef.current = posRef.current.y;
       window.smp?.forceCapture(false);
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onUp);
@@ -1097,22 +1612,66 @@ export default function DesktopPet({ visible }: DesktopPetProps) {
           Invisible drag-target div kept alive so the pet is still draggable during poo animations. */}
       <div
         onMouseDown={onMouseDown}
+        onContextMenu={(e) => { e.preventDefault(); window.smp?.showSheepMenu?.(); }}
+        onDoubleClick={(e) => { e.preventDefault(); window.smp?.openPrefs?.(); }}
         style={sheepStyle(
           displayFrame, displayDir, displayPos.x, displayPos.y,
           {
             cursor: 'grab',
             pointerEvents: 'auto',
-            visibility: pooDisplay ? 'hidden' : 'visible',
+            visibility: pooDisplay || bathtubProp?.splash ? 'hidden' : 'visible',
             filter: stateRef.current === 'burn'
               ? 'drop-shadow(0 0 8px #ff6600) drop-shadow(0 0 16px #ff2200) brightness(1.2)'
+              : stateRef.current === 'blush'
+              ? 'drop-shadow(0 2px 4px rgba(0,0,0,0.4)) hue-rotate(320deg) saturate(1.6)'
+              : stateRef.current === 'amazed'
+              ? 'drop-shadow(0 2px 4px rgba(0,0,0,0.4)) brightness(1.15) saturate(1.3)'
               : 'drop-shadow(0 2px 4px rgba(0,0,0,0.4))',
             transform: [
               displayDir === 1 ? 'scaleX(-1)' : '',
               extraTransform,
+              displayRot !== 0 ? `rotate(${displayRot}deg)` : '',
             ].filter(Boolean).join(' ') || 'none',
           },
         )}
       />
+
+      {/* Pee puddle — renders under (behind) the sheep */}
+      {puddle && puddle.w > 0 && (
+        <div
+          style={{
+            position: 'fixed',
+            left: puddle.x - puddle.w / 2,
+            top: puddle.y - puddle.h / 2,
+            width: puddle.w,
+            height: puddle.h,
+            borderRadius: '50%',
+            background: 'radial-gradient(ellipse at center, rgba(240,220,90,0.95) 0%, rgba(220,190,60,0.85) 60%, rgba(180,150,40,0.4) 100%)',
+            opacity: puddle.alpha,
+            boxShadow: '0 0 2px rgba(200,160,30,0.5), inset 1px 1px 0 rgba(255,240,160,0.6)',
+            pointerEvents: 'none',
+            zIndex: 0,
+          }}
+        />
+      )}
+
+      {/* Dust puff — brief poof kicked up by a hard landing */}
+      {dustPuff && dustPuff.alpha > 0 && (
+        <div
+          style={{
+            position: 'fixed',
+            left: dustPuff.x - 18 * dustPuff.scale,
+            top: dustPuff.y - 8 * dustPuff.scale,
+            width: 36 * dustPuff.scale,
+            height: 16 * dustPuff.scale,
+            borderRadius: '50%',
+            background: 'radial-gradient(ellipse at center, rgba(220,210,195,0.95) 0%, rgba(180,170,150,0.55) 55%, rgba(140,130,115,0) 100%)',
+            opacity: dustPuff.alpha,
+            pointerEvents: 'none',
+            zIndex: 0,
+          }}
+        />
+      )}
 
       {/* Bathtub prop — renders on top of sheep so sheep appears inside tub */}
       {bathtubProp && (
