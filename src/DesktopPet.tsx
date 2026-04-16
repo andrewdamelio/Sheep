@@ -105,41 +105,41 @@ interface AnimDef {
 
 const ANIMS: Record<SheepState, AnimDef> = {
   idle: {
-    frames: [{ idx: 3, ms: 300 }, { idx: 3, ms: 300 }],
+    frames: [{ idx: 3, ms: 900 }, { idx: 3, ms: 900 }],
     loop: false,
     next: () => {
       const r = Math.random();
-      if (r < 0.16) return 'walk';
-      if (r < 0.26) return 'run_begin';
-      if (r < 0.34) return 'graze';
-      if (r < 0.42) return 'sleep1a';
-      if (r < 0.48) return 'sleep2a';
-      if (r < 0.54) return 'sit';
-      if (r < 0.61) return 'poo_sit';
-      if (r < 0.68) return 'poo_yawn';
-      if (r < 0.75) return 'poo_sleep';
-      if (r < 0.81) return 'poo_roll';
-      if (r < 0.84) return 'pee';
-      // Idle quirks — small chances, blink the most common:
-      if (r < 0.88) return 'blink';
-      if (r < 0.90) return 'baa';
-      if (r < 0.92) return 'yawn_quirk';
-      if (r < 0.935) return 'sneeze';
-      if (r < 0.945) return 'amazed';
-      if (r < 0.955) return 'blush';
-      // Movement quirks — rarer still:
-      if (r < 0.965) return 'look_down';
-      if (r < 0.975) return 'turn_around';
-      if (r < 0.985) return 'spin';
-      if (r < 0.993) return 'roll_move';
-      if (r < 0.998) return 'jump_down';
+      // Mostly stay idle or walk — everything else is rare.
+      if (r < 0.78) return 'idle';
+      if (r < 0.93) return 'walk';
+      if (r < 0.945) return 'graze';
+      if (r < 0.955) return 'sit';
+      if (r < 0.962) return 'sleep1a';
+      if (r < 0.968) return 'sleep2a';
+      if (r < 0.973) return 'poo_sit';
+      if (r < 0.978) return 'poo_yawn';
+      if (r < 0.982) return 'poo_sleep';
+      if (r < 0.985) return 'poo_roll';
+      if (r < 0.987) return 'pee';
+      // Idle quirks — tiny chances:
+      if (r < 0.993) return 'blink';
+      if (r < 0.995) return 'baa';
+      if (r < 0.997) return 'yawn_quirk';
+      if (r < 0.9985) return 'sneeze';
+      if (r < 0.9992) return 'amazed';
+      if (r < 0.9996) return 'blush';
+      // Movement quirks — very rare:
+      if (r < 0.99975) return 'look_down';
+      if (r < 0.99985) return 'turn_around';
+      if (r < 0.99992) return 'spin';
+      if (r < 0.99997) return 'roll_move';
       return 'idle';
     },
   },
   walk: {
-    frames: [{ idx: 3, ms: 140 }, { idx: 4, ms: 140 }, { idx: 5, ms: 140 }, { idx: 4, ms: 140 }],
-    loop: true, vx: 0.5,
-    next: () => { const r = Math.random(); if (r < 0.15) return 'idle'; if (r < 0.25) return 'run_begin'; return 'walk'; },
+    frames: [{ idx: 3, ms: 180 }, { idx: 4, ms: 180 }, { idx: 5, ms: 180 }, { idx: 4, ms: 180 }],
+    loop: true, vx: 0.35,
+    next: () => { const r = Math.random(); if (r < 0.25) return 'idle'; return 'walk'; },
   },
   run_begin: {
     frames: [{ idx: 3, ms: 85 }, { idx: 4, ms: 85 }, { idx: 5, ms: 85 }, { idx: 4, ms: 85 }],
@@ -1730,9 +1730,9 @@ export default function DesktopPet({ visible, speedMultiplier = 1, windowRect = 
       setFlower(f);
     };
     const schedule = (): ReturnType<typeof setTimeout> => {
-      return setTimeout(() => { spawn(); schedule(); }, 20000 + Math.random() * 25000);
+      return setTimeout(() => { spawn(); schedule(); }, 90000 + Math.random() * 120000);
     };
-    const first = setTimeout(spawn, 15000);
+    const first = setTimeout(spawn, 60000);
     const recurring = schedule();
     return () => { clearTimeout(first); clearTimeout(recurring); };
   }, [visible]);
@@ -1828,7 +1828,7 @@ export default function DesktopPet({ visible, speedMultiplier = 1, windowRect = 
   useEffect(() => {
     if (!visible) return;
     const schedule = (): ReturnType<typeof setTimeout> => {
-      return setTimeout(() => { triggerSpecialEvent(); schedule(); }, 25000 + Math.random() * 35000);
+      return setTimeout(() => { triggerSpecialEvent(); schedule(); }, 90000 + Math.random() * 120000);
     };
     const t = schedule();
     return () => clearTimeout(t);
