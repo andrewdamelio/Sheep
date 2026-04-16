@@ -137,21 +137,21 @@ const ANIMS: Record<SheepState, AnimDef> = {
     },
   },
   walk: {
-    frames: [{ idx: 2, ms: 140 }, { idx: 3, ms: 140 }],
+    frames: [{ idx: 3, ms: 140 }, { idx: 4, ms: 140 }, { idx: 5, ms: 140 }, { idx: 4, ms: 140 }],
     loop: true, vx: 0.5,
     next: () => { const r = Math.random(); if (r < 0.15) return 'idle'; if (r < 0.25) return 'run_begin'; return 'walk'; },
   },
   run_begin: {
-    frames: [{ idx: 2, ms: 90 }, { idx: 3, ms: 90 }],
+    frames: [{ idx: 3, ms: 85 }, { idx: 4, ms: 85 }, { idx: 5, ms: 85 }, { idx: 4, ms: 85 }],
     loop: false, vx: 1.0, next: () => 'run',
   },
   run: {
-    frames: [{ idx: 2, ms: 80 }, { idx: 3, ms: 80 }],
+    frames: [{ idx: 3, ms: 70 }, { idx: 4, ms: 70 }, { idx: 5, ms: 70 }, { idx: 4, ms: 70 }],
     loop: true, vx: 1.5,
     next: () => Math.random() < 0.2 ? 'run_end' : 'run',
   },
   run_end: {
-    frames: [{ idx: 2, ms: 120 }, { idx: 3, ms: 120 }],
+    frames: [{ idx: 3, ms: 110 }, { idx: 4, ms: 110 }, { idx: 5, ms: 110 }, { idx: 4, ms: 110 }],
     loop: false, vx: 0.6, next: () => Math.random() < 0.5 ? 'idle' : 'walk',
   },
   sleep1a: {
@@ -191,7 +191,7 @@ const ANIMS: Record<SheepState, AnimDef> = {
     loop: false, vx: 0, next: () => 'idle',
   },
   seek: {
-    frames: [{ idx: 2, ms: 180 }, { idx: 3, ms: 180 }],
+    frames: [{ idx: 3, ms: 140 }, { idx: 4, ms: 140 }, { idx: 5, ms: 140 }, { idx: 4, ms: 140 }],
     loop: true, vx: 0.6, next: () => 'idle',
   },
   sit: {
@@ -348,7 +348,7 @@ const ANIMS: Record<SheepState, AnimDef> = {
   },
   climb_prep: {
     // Walk toward edge — movement handled in tick
-    frames: [{ idx: 2, ms: 180 }, { idx: 3, ms: 180 }],
+    frames: [{ idx: 3, ms: 140 }, { idx: 4, ms: 140 }, { idx: 5, ms: 140 }, { idx: 4, ms: 140 }],
     loop: true, vx: 0.5, next: () => 'climb_up',
   },
   climb_up: {
@@ -435,7 +435,7 @@ const ANIMS: Record<SheepState, AnimDef> = {
   },
   mushroom_seek: {
     // Walk toward mushroomRef (x-target picked in tick).
-    frames: [{ idx: 2, ms: 180 }, { idx: 3, ms: 180 }],
+    frames: [{ idx: 3, ms: 140 }, { idx: 4, ms: 140 }, { idx: 5, ms: 140 }, { idx: 4, ms: 140 }],
     loop: true, vx: 0.6, next: () => 'idle',
   },
   mushroom_eat: {
@@ -450,7 +450,7 @@ const ANIMS: Record<SheepState, AnimDef> = {
   },
   trippy_walk: {
     // Standard walk pose — hue-rotate + wobble applied via render filter/transform.
-    frames: [{ idx: 2, ms: 160 }, { idx: 3, ms: 160 }],
+    frames: [{ idx: 3, ms: 160 }, { idx: 4, ms: 160 }, { idx: 5, ms: 160 }, { idx: 4, ms: 160 }],
     loop: true, vx: 0.4, next: () => 'idle',
   },
 };
@@ -932,13 +932,13 @@ export default function DesktopPet({ visible, speedMultiplier = 1, windowRect = 
     balloonRef.current = {
       colorIdx: Math.floor(Math.random() * 8),
       startTs: ts,
-      popAt: ts + 4800 + Math.random() * 1500, // 4.8-6.3s aloft
+      popAt: ts + 10000 + Math.random() * 4000, // 10-14s aloft
       popped: false,
       bobPhase: 0,
     };
     stateRef.current = 'balloon_float';
     velRef.current.x = (Math.random() - 0.5) * 0.6;
-    velRef.current.y = -1.4;
+    velRef.current.y = -2.6;
     frameIdxRef.current = 0;
     loopCycleRef.current = 0;
     window.sheepSay?.say({ text: 'wheee—', emoji: '🎈', tint: 'neutral', durationMs: 2800 });
@@ -1363,12 +1363,16 @@ export default function DesktopPet({ visible, speedMultiplier = 1, windowRect = 
         window.sheepSay?.say({ text: '*pop!*', emoji: '💥', tint: 'neutral', durationMs: 1600 });
       }
       if (stateRef.current === 'balloon_float') {
-        // Rise gently, with a sinusoidal drift in x.
+        // Rise faster, with a sinusoidal drift in x.
         const elapsed = ts - bal.startTs;
-        vel.y = -1.0 - Math.sin(elapsed / 700) * 0.3;
-        vel.x = Math.sin(elapsed / 600 + bal.bobPhase) * 0.5;
-        // Clamp ceiling — bounce off top smoothly.
-        if (pos.y < RENDER_H * 0.5) { vel.y = 0.2; }
+        vel.y = -2.2 - Math.sin(elapsed / 700) * 0.5;
+        vel.x = Math.sin(elapsed / 600 + bal.bobPhase) * 0.7;
+        // Near the top: linger in a gentle bob rather than bouncing straight back down.
+        if (pos.y < 8) {
+          vel.y = Math.sin(elapsed / 400) * 0.4;
+        } else if (pos.y < 40) {
+          vel.y *= 0.35;
+        }
       }
       // Balloon prop tracks sheep head.
       const bobY = Math.sin((ts - bal.startTs) / 320) * 2;
@@ -1736,6 +1740,19 @@ export default function DesktopPet({ visible, speedMultiplier = 1, windowRect = 
   // Expose event triggers to browser console for testing
   useEffect(() => {
     if (!visible) return;
+    const setSheepState = (s: SheepState) => {
+      if (dragRef.current) return;
+      const blocked: SheepState[] = [
+        'drag', 'fall', 'ufo_caught', 'burn', 'climb_up', 'top_walk', 'climb_down',
+        'climb_prep', 'boing', 'blacksheep', 'bathtub',
+        'balloon_float', 'disco_dance', 'mushroom_seek', 'mushroom_eat', 'trippy_walk',
+      ];
+      if (blocked.includes(stateRef.current)) return;
+      stateRef.current = s;
+      velRef.current.x = 0;
+      frameIdxRef.current = 0;
+      loopCycleRef.current = 0;
+    };
     (window as any).sheep = {
       burn:       triggerBurn,
       boing:      triggerBoing,
@@ -1743,10 +1760,10 @@ export default function DesktopPet({ visible, speedMultiplier = 1, windowRect = 
       blacksheep: triggerBlacksheep,
       ufo:        triggerUFO,
       alien:      triggerAlienEncounter,
-      sleep:      () => triggerPooState('poo_sleep'),
-      sit:        () => triggerPooState('poo_sit'),
-      yawn:       () => triggerPooState('poo_yawn'),
-      roll:       () => triggerPooState('poo_roll'),
+      sleep:      () => setSheepState('sleep1a'),
+      sit:        () => setSheepState('sit'),
+      yawn:       () => triggerQuirk('yawn_quirk'),
+      roll:       () => triggerMovementQuirk('roll_move'),
       pee:        triggerPee,
       blink:      () => triggerQuirk('blink'),
       yawnQuirk:  () => triggerQuirk('yawn_quirk'),
