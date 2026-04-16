@@ -7,7 +7,8 @@ type SummonAction =
   | 'burn' | 'boing' | 'climb' | 'ufo' | 'alien' | 'blacksheep'
   | 'jump' | 'flower' | 'random' | 'sleep' | 'sit' | 'yawn' | 'roll' | 'pee'
   | 'blink' | 'yawnQuirk' | 'baa' | 'sneeze' | 'amazed' | 'blush'
-  | 'spin' | 'rollMove' | 'lookDown' | 'turnAround' | 'jumpDown';
+  | 'spin' | 'rollMove' | 'lookDown' | 'turnAround' | 'jumpDown'
+  | 'balloon' | 'disco' | 'mushroom';
 
 interface SheepConsole {
   burn?: () => void; boing?: () => void; climb?: () => void;
@@ -19,6 +20,7 @@ interface SheepConsole {
   sneeze?: () => void; amazed?: () => void; blush?: () => void;
   spin?: () => void; rollMove?: () => void; lookDown?: () => void; turnAround?: () => void;
   jumpDown?: () => void;
+  balloon?: () => void; disco?: () => void; mushroom?: () => void;
   forceSleep?: () => void;
 }
 

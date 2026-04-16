@@ -159,7 +159,8 @@ type SummonAction =
   | 'burn' | 'boing' | 'climb' | 'ufo' | 'alien' | 'blacksheep'
   | 'jump' | 'flower' | 'random' | 'sleep' | 'sit' | 'yawn' | 'roll' | 'pee'
   | 'blink' | 'yawnQuirk' | 'baa' | 'sneeze' | 'amazed' | 'blush'
-  | 'spin' | 'rollMove' | 'lookDown' | 'turnAround' | 'jumpDown';
+  | 'spin' | 'rollMove' | 'lookDown' | 'turnAround' | 'jumpDown'
+  | 'balloon' | 'disco' | 'mushroom';
 
 function sendToRenderer(channel: string, ...args: unknown[]) {
   if (!overlayAlive()) return;
@@ -195,6 +196,9 @@ function buildTrayMenu() {
         summon('UFO abduction', 'ufo'),
         summon('Alien encounter', 'alien'),
         summon('Black sheep passes', 'blacksheep'),
+        summon('Grab a balloon 🎈', 'balloon'),
+        summon('Disco dance 🪩', 'disco'),
+        summon('Spawn mushroom 🍄', 'mushroom'),
         { type: 'separator' },
         summon('Jump', 'jump'),
         summon('Spawn flower', 'flower'),
@@ -372,6 +376,9 @@ ipcMain.on('smp:show-sheep-menu', () => {
         summonItem('Alien encounter', 'alien'),
         summonItem('Black sheep', 'blacksheep'),
         summonItem('Spawn flower', 'flower'),
+        summonItem('Grab a balloon 🎈', 'balloon'),
+        summonItem('Disco dance 🪩', 'disco'),
+        summonItem('Spawn mushroom 🍄', 'mushroom'),
         summonItem('Pee 💦', 'pee'),
       ],
     },

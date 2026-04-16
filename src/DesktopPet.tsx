@@ -9,6 +9,9 @@ import scmpoo110 from './assets/scmpoo110.png';
 import scmpoo111 from './assets/scmpoo111.png';
 import scmpoo103 from './assets/scmpoo103.png';
 import scmpoo108 from './assets/scmpoo108.png';
+import scmpooBalloon from './assets/scmpoo_balloon.png';
+import scmpooDisco from './assets/scmpoo_disco.png';
+import scmpooMushroom from './assets/scmpoo_mushroom.png';
 
 const TILE_W = 60;
 const TILE_H = 64;
@@ -86,7 +89,12 @@ type SheepState =
   | 'poo_sleep'                      // scmpoo103 frames 0-1: sleeping zzz
   | 'poo_sit'                        // scmpoo103 frames 2-4: sitting and staring
   | 'poo_yawn'                       // scmpoo103 frames 5-7: big yawn
-  | 'poo_roll';                      // scmpoo108 frames 7-10: rolling around
+  | 'poo_roll'                       // scmpoo108 frames 7-10: rolling around
+  | 'balloon_float'                  // grabs a balloon, lifts off, drifts, pops
+  | 'disco_dance'                    // disco ball drops, sheep spins, music notes
+  | 'mushroom_seek'                  // walk toward a spawned mushroom
+  | 'mushroom_eat'                   // munch the mushroom (cap disappears by bites)
+  | 'trippy_walk';                   // post-mushroom hue-rotating wobble walk
 
 interface AnimDef {
   frames: { idx: number; ms: number }[];
@@ -129,21 +137,21 @@ const ANIMS: Record<SheepState, AnimDef> = {
     },
   },
   walk: {
-    frames: [{ idx: 2, ms: 180 }, { idx: 3, ms: 180 }],
+    frames: [{ idx: 2, ms: 140 }, { idx: 3, ms: 140 }],
     loop: true, vx: 0.5,
     next: () => { const r = Math.random(); if (r < 0.15) return 'idle'; if (r < 0.25) return 'run_begin'; return 'walk'; },
   },
   run_begin: {
-    frames: [{ idx: 2, ms: 110 }, { idx: 3, ms: 110 }, { idx: 2, ms: 110 }, { idx: 5, ms: 110 }, { idx: 4, ms: 110 }, { idx: 5, ms: 110 }],
+    frames: [{ idx: 2, ms: 90 }, { idx: 3, ms: 90 }],
     loop: false, vx: 1.0, next: () => 'run',
   },
   run: {
-    frames: [{ idx: 5, ms: 100 }, { idx: 4, ms: 100 }, { idx: 4, ms: 100 }],
+    frames: [{ idx: 2, ms: 80 }, { idx: 3, ms: 80 }],
     loop: true, vx: 1.5,
     next: () => Math.random() < 0.2 ? 'run_end' : 'run',
   },
   run_end: {
-    frames: [{ idx: 5, ms: 110 }, { idx: 4, ms: 110 }, { idx: 5, ms: 110 }, { idx: 4, ms: 110 }, { idx: 5, ms: 110 }, { idx: 3, ms: 110 }, { idx: 2, ms: 110 }, { idx: 3, ms: 110 }],
+    frames: [{ idx: 2, ms: 120 }, { idx: 3, ms: 120 }],
     loop: false, vx: 0.6, next: () => Math.random() < 0.5 ? 'idle' : 'walk',
   },
   sleep1a: {
@@ -406,6 +414,45 @@ const ANIMS: Record<SheepState, AnimDef> = {
     ],
     loop: false, vx: 0, next: () => 'walk',
   },
+  // ── New sequences ──────────────────────────────────────────────────────────
+  balloon_float: {
+    // Sheep holds the balloon string — stationary frame, lifted by custom tick logic.
+    // Occasional blink (frame 6) breaks up the pose during the ~4s float.
+    frames: [
+      { idx: 3, ms: 600 }, { idx: 3, ms: 600 }, { idx: 6, ms: 140 },
+      { idx: 3, ms: 700 }, { idx: 3, ms: 600 }, { idx: 6, ms: 140 },
+      { idx: 3, ms: 700 },
+    ],
+    loop: true, vx: 0, next: () => 'fall',
+  },
+  disco_dance: {
+    // Sheep spins in place — custom rotation driven by displayRot clock.
+    frames: [
+      { idx: 3, ms: 120 }, { idx: 3, ms: 120 }, { idx: 3, ms: 120 }, { idx: 3, ms: 120 },
+      { idx: 3, ms: 120 }, { idx: 3, ms: 120 }, { idx: 3, ms: 120 }, { idx: 3, ms: 120 },
+    ],
+    loop: true, vx: 0, next: () => 'idle',
+  },
+  mushroom_seek: {
+    // Walk toward mushroomRef (x-target picked in tick).
+    frames: [{ idx: 2, ms: 180 }, { idx: 3, ms: 180 }],
+    loop: true, vx: 0.6, next: () => 'idle',
+  },
+  mushroom_eat: {
+    // Same rhythm as graze but slightly slower — savouring the chew.
+    frames: [
+      { idx: 3, ms: 200 },
+      { idx: 58, ms: 200 }, { idx: 60, ms: 160 }, { idx: 61, ms: 160 },
+      { idx: 60, ms: 160 }, { idx: 61, ms: 160 }, { idx: 60, ms: 160 }, { idx: 61, ms: 160 },
+      { idx: 58, ms: 200 },
+    ],
+    loop: false, vx: 0, next: () => 'trippy_walk',
+  },
+  trippy_walk: {
+    // Standard walk pose — hue-rotate + wobble applied via render filter/transform.
+    frames: [{ idx: 2, ms: 160 }, { idx: 3, ms: 160 }],
+    loop: true, vx: 0.4, next: () => 'idle',
+  },
 };
 
 const LOOP_CYCLES: Partial<Record<SheepState, [number, number]>> = {
@@ -419,6 +466,10 @@ const LOOP_CYCLES: Partial<Record<SheepState, [number, number]>> = {
   top_walk:   [999, 999],
   climb_down: [999, 999],
   burn:       [999, 999], // loops until floor landing
+  balloon_float: [999, 999], // controlled by balloonRef endTs
+  disco_dance:   [999, 999], // controlled by discoRef endTs
+  mushroom_seek: [999, 999], // controlled by seek target proximity
+  trippy_walk:   [40, 90],
 };
 
 interface SecondSheep {
@@ -497,6 +548,23 @@ export default function DesktopPet({ visible, speedMultiplier = 1, windowRect = 
   const pooRef = useRef<{ sheet: string; frames: number[]; frameDuration: number; startTs: number } | null>(null);
   const [pooDisplay, setPooDisplay] = useState<{ sheet: string; frame: number; x: number; y: number } | null>(null);
 
+  // ── Balloon float refs ──────────────────────────────────────────────────
+  // colorIdx picks one of the 4 balloon tints (0..3 → red/blue/yellow/pink, 4..7 → green/purple/orange/cyan).
+  const balloonRef = useRef<{ colorIdx: number; startTs: number; popAt: number; popped: boolean; bobPhase: number } | null>(null);
+  const [balloonProp, setBalloonProp] = useState<{ x: number; y: number; frame: number } | null>(null);
+
+  // ── Disco dance refs ────────────────────────────────────────────────────
+  interface MusicNote { x: number; y: number; vx: number; vy: number; kind: number; startTs: number }
+  const discoRef = useRef<{ startTs: number; endTs: number; ballY: number; targetBallY: number; notes: MusicNote[]; nextNoteTs: number } | null>(null);
+  const [discoProp, setDiscoProp] = useState<{ x: number; y: number; frame: number } | null>(null);
+  const [discoNotes, setDiscoNotes] = useState<MusicNote[]>([]);
+
+  // ── Mushroom refs ───────────────────────────────────────────────────────
+  const mushroomRef = useRef<{ x: number; y: number; frame: number } | null>(null);
+  const eatingMushroomRef = useRef(false);
+  const [mushroom, setMushroom] = useState<{ x: number; y: number; frame: number } | null>(null);
+  const trippyStartTsRef = useRef(0);
+
   const rafRef = useRef<number>(0);
   const lastTickRef = useRef(0);
   const nextFrameTimeRef = useRef(0);
@@ -519,10 +587,36 @@ export default function DesktopPet({ visible, speedMultiplier = 1, windowRect = 
       }
     }
 
-    // Flower seek injection
-    let resolved = next;
-    if (flowerRef.current && (next === 'idle' || next === 'walk') && stateRef.current !== 'seek') {
+    // Mushroom eating — advance bite stage (frames 3→4→5→6→gone). After final
+    // bite, force the next state to 'trippy_walk' so the post-mushroom wobble
+    // reliably fires regardless of mushroom_eat's default next().
+    let forceNext: SheepState | null = null;
+    if (stateRef.current === 'mushroom_eat' && eatingMushroomRef.current && mushroomRef.current) {
+      const nextFrame = mushroomRef.current.frame + 1;
+      if (nextFrame > 6) {
+        // Done — sparkles briefly, then clear. Enter trippy walk.
+        eatingMushroomRef.current = false;
+        mushroomRef.current = { ...mushroomRef.current, frame: 7 };
+        setMushroom({ ...mushroomRef.current });
+        setTimeout(() => { mushroomRef.current = null; setMushroom(null); }, 700);
+        forceNext = 'trippy_walk';
+        trippyStartTsRef.current = performance.now();
+        window.sheepSay?.say({ text: 'whoa.', emoji: '🍄', tint: 'neutral', durationMs: 2400 });
+      } else {
+        mushroomRef.current = { ...mushroomRef.current, frame: nextFrame };
+        setMushroom({ ...mushroomRef.current });
+        // More bites needed — re-seek
+        forceNext = 'mushroom_seek';
+      }
+    }
+
+    // Flower seek injection (mushroom uses an explicit mushroom_seek state already)
+    let resolved = forceNext ?? next;
+    if (flowerRef.current && (resolved === 'idle' || resolved === 'walk') && stateRef.current !== 'seek') {
       resolved = 'seek';
+    }
+    if (mushroomRef.current && mushroomRef.current.frame >= 3 && (resolved === 'idle' || resolved === 'walk') && stateRef.current !== 'mushroom_seek' && stateRef.current !== 'mushroom_eat' && stateRef.current !== 'trippy_walk') {
+      resolved = 'mushroom_seek';
     }
 
     stateRef.current = resolved;
@@ -826,21 +920,97 @@ export default function DesktopPet({ visible, speedMultiplier = 1, windowRect = 
     loopCycleRef.current = 0;
   }, []);
 
+  const triggerBalloon = useCallback(() => {
+    const blocked: SheepState[] = [
+      'drag', 'fall', 'burn', 'ufo_caught', 'climb_up', 'top_walk', 'climb_down',
+      'climb_prep', 'pee', 'boing', 'blacksheep', 'bathtub', 'balloon_float', 'disco_dance',
+      'mushroom_seek', 'mushroom_eat', 'trippy_walk',
+    ];
+    if (blocked.includes(stateRef.current)) return;
+    if (balloonRef.current) return;
+    const ts = performance.now();
+    balloonRef.current = {
+      colorIdx: Math.floor(Math.random() * 8),
+      startTs: ts,
+      popAt: ts + 4800 + Math.random() * 1500, // 4.8-6.3s aloft
+      popped: false,
+      bobPhase: 0,
+    };
+    stateRef.current = 'balloon_float';
+    velRef.current.x = (Math.random() - 0.5) * 0.6;
+    velRef.current.y = -1.4;
+    frameIdxRef.current = 0;
+    loopCycleRef.current = 0;
+    window.sheepSay?.say({ text: 'wheee—', emoji: '🎈', tint: 'neutral', durationMs: 2800 });
+  }, []);
+
+  const triggerDisco = useCallback(() => {
+    const blocked: SheepState[] = [
+      'drag', 'fall', 'burn', 'ufo_caught', 'climb_up', 'top_walk', 'climb_down',
+      'climb_prep', 'pee', 'boing', 'blacksheep', 'bathtub', 'balloon_float', 'disco_dance',
+      'mushroom_seek', 'mushroom_eat', 'trippy_walk',
+    ];
+    if (blocked.includes(stateRef.current)) return;
+    if (discoRef.current) return;
+    const ts = performance.now();
+    const H = window.innerHeight;
+    discoRef.current = {
+      startTs: ts,
+      endTs: ts + 5200,
+      ballY: -S_FH,
+      targetBallY: Math.max(20, posRef.current.y - 60),
+      notes: [],
+      nextNoteTs: ts + 300,
+    };
+    stateRef.current = 'disco_dance';
+    velRef.current.x = 0;
+    frameIdxRef.current = 0;
+    loopCycleRef.current = 0;
+    rotStartTsRef.current = ts;
+    setDiscoProp({ x: posRef.current.x + RENDER_W / 2 - S_FW / 2, y: -S_FH, frame: 0 });
+    sfx.boing?.();
+    void H; // touch
+  }, []);
+
+  const spawnMushroom = useCallback(() => {
+    if (mushroomRef.current || flowerRef.current) return;
+    const W = window.innerWidth;
+    const H = window.innerHeight;
+    const x = RENDER_W + Math.random() * (W - RENDER_W * 3);
+    const y = H - RENDER_H;
+    const m = { x, y, frame: 0 };
+    mushroomRef.current = m;
+    setMushroom(m);
+    // Grow through stages 0→3 over ~1.4s before sheep can eat
+    const grow = (stage: number) => {
+      setTimeout(() => {
+        if (!mushroomRef.current) return;
+        mushroomRef.current.frame = stage;
+        setMushroom({ ...mushroomRef.current });
+      }, 350 * stage);
+    };
+    for (let s = 1; s <= 3; s++) grow(s);
+  }, []);
+
   const triggerSpecialEvent = useCallback(() => {
     if (dragRef.current) return;
-    const blocked: SheepState[] = ['climb_up', 'top_walk', 'climb_down', 'climb_prep', 'blacksheep', 'ufo_caught', 'boing', 'burn', 'bathtub', 'drag', 'fall', 'poo_sleep', 'poo_sit', 'poo_yawn', 'poo_roll'];
+    const blocked: SheepState[] = ['climb_up', 'top_walk', 'climb_down', 'climb_prep', 'blacksheep', 'ufo_caught', 'boing', 'burn', 'bathtub', 'drag', 'fall', 'poo_sleep', 'poo_sit', 'poo_yawn', 'poo_roll', 'balloon_float', 'disco_dance', 'mushroom_seek', 'mushroom_eat', 'trippy_walk'];
     if (blocked.includes(stateRef.current)) return;
     if (secondSheepRef.current) return;
     if (ufoRef.current) return;
+    if (balloonRef.current || discoRef.current) return;
 
     const r = Math.random();
-    if (r < 0.18)      triggerBurn();
-    else if (r < 0.36) triggerBoing();
-    else if (r < 0.52) triggerClimb();
-    else if (r < 0.68) triggerBlacksheep();
-    else if (r < 0.84) triggerUFO();
-    else               triggerAlienEncounter();
-  }, [triggerBurn, triggerBoing, triggerClimb, triggerBlacksheep, triggerUFO, triggerAlienEncounter]);
+    if (r < 0.14)      triggerBurn();
+    else if (r < 0.28) triggerBoing();
+    else if (r < 0.42) triggerClimb();
+    else if (r < 0.54) triggerBlacksheep();
+    else if (r < 0.66) triggerUFO();
+    else if (r < 0.76) triggerAlienEncounter();
+    else if (r < 0.86) triggerBalloon();
+    else if (r < 0.94) triggerDisco();
+    else               spawnMushroom();
+  }, [triggerBurn, triggerBoing, triggerClimb, triggerBlacksheep, triggerUFO, triggerAlienEncounter, triggerBalloon, triggerDisco, spawnMushroom]);
 
   // ── RAF tick ────────────────────────────────────────────────────────────
   const tick = useCallback((ts: number) => {
@@ -1161,6 +1331,127 @@ export default function DesktopPet({ visible, speedMultiplier = 1, windowRect = 
       stateRef.current = 'idle'; vel.x = 0; frameIdxRef.current = 0;
     }
 
+    // ── Seek mushroom ─────────────────────────────────────────────────────
+    if (stateRef.current === 'mushroom_seek' && mushroomRef.current) {
+      const dx = mushroomRef.current.x - pos.x;
+      dirRef.current = dx > 0 ? 1 : -1;
+      vel.x = ANIMS.mushroom_seek.vx! * dirRef.current;
+      if (Math.abs(dx) < RENDER_W * 1.1) {
+        vel.x = 0;
+        eatingMushroomRef.current = true;
+        stateRef.current = 'mushroom_eat';
+        frameIdxRef.current = 0;
+        loopCycleRef.current = 0;
+        nextFrameTimeRef.current = ts;
+      }
+    } else if (stateRef.current === 'mushroom_seek' && !mushroomRef.current) {
+      stateRef.current = 'idle'; vel.x = 0; frameIdxRef.current = 0;
+    }
+
+    // ── Balloon float ─────────────────────────────────────────────────────
+    const bal = balloonRef.current;
+    if (bal) {
+      // Pop check — transition sheep into fall and leave shred frames briefly.
+      if (!bal.popped && ts >= bal.popAt) {
+        bal.popped = true;
+        bal.startTs = ts; // repurpose for pop timeline
+        stateRef.current = 'fall';
+        frameIdxRef.current = 0;
+        fallStartYRef.current = pos.y;
+        vel.y = 1.0; // slight downward kick at pop
+        sfx.boing?.();
+        window.sheepSay?.say({ text: '*pop!*', emoji: '💥', tint: 'neutral', durationMs: 1600 });
+      }
+      if (stateRef.current === 'balloon_float') {
+        // Rise gently, with a sinusoidal drift in x.
+        const elapsed = ts - bal.startTs;
+        vel.y = -1.0 - Math.sin(elapsed / 700) * 0.3;
+        vel.x = Math.sin(elapsed / 600 + bal.bobPhase) * 0.5;
+        // Clamp ceiling — bounce off top smoothly.
+        if (pos.y < RENDER_H * 0.5) { vel.y = 0.2; }
+      }
+      // Balloon prop tracks sheep head.
+      const bobY = Math.sin((ts - bal.startTs) / 320) * 2;
+      const propX = Math.round(pos.x + RENDER_W / 2 - S_FW / 2);
+      const propY = Math.round(pos.y - S_FH + 6 + bobY);
+      let frame: number;
+      if (!bal.popped) {
+        // Bob cycle alternates between the two bob frames of the chosen color pair.
+        const bobIdx = Math.floor(((ts - bal.startTs) / 180) % 2);
+        const base = (bal.colorIdx < 4 ? bal.colorIdx * 2 : 12 + (bal.colorIdx - 4) * 2) >>> 0;
+        frame = base + bobIdx;
+      } else {
+        // Pop sequence — frame 8 stretch (brief) → 9 burst → 10 shreds → gone.
+        const pElapsed = ts - bal.startTs;
+        if (pElapsed < 80) frame = 8;
+        else if (pElapsed < 260) frame = 9;
+        else if (pElapsed < 700) frame = 10;
+        else frame = -1;
+      }
+      if (frame < 0) {
+        balloonRef.current = null;
+        setBalloonProp(null);
+      } else {
+        setBalloonProp({ x: propX, y: propY, frame });
+      }
+    }
+
+    // ── Disco dance ───────────────────────────────────────────────────────
+    const disco = discoRef.current;
+    if (disco) {
+      const elapsed = ts - disco.startTs;
+      const total = disco.endTs - disco.startTs;
+      // Ball descends in first 800ms, hovers, then retracts in last 700ms.
+      if (elapsed < 800) {
+        const p = elapsed / 800;
+        disco.ballY = -S_FH + (disco.targetBallY + S_FH) * (1 - Math.pow(1 - p, 3));
+      } else if (elapsed > total - 700) {
+        const p = Math.min(1, (elapsed - (total - 700)) / 700);
+        disco.ballY = disco.targetBallY - (disco.targetBallY + S_FH) * p;
+      } else {
+        // Hover with subtle swing
+        disco.ballY = disco.targetBallY + Math.sin(elapsed / 250) * 1.5;
+      }
+      const ballX = Math.round(pos.x + RENDER_W / 2 - S_FW / 2);
+      const ballFrame = Math.floor((ts - disco.startTs) / 110) % 6;
+      setDiscoProp({ x: ballX, y: Math.round(disco.ballY), frame: ballFrame });
+
+      // Spawn music notes periodically during hover phase.
+      if (ts >= disco.nextNoteTs && elapsed > 600 && elapsed < total - 500) {
+        const sideSign = Math.random() < 0.5 ? -1 : 1;
+        disco.notes.push({
+          x: pos.x + RENDER_W / 2 - S_FW / 2 + sideSign * (6 + Math.random() * 14),
+          y: pos.y - 6,
+          vx: sideSign * (0.2 + Math.random() * 0.4),
+          vy: -(0.8 + Math.random() * 0.4),
+          kind: Math.floor(Math.random() * 4),
+          startTs: ts,
+        });
+        disco.nextNoteTs = ts + 180 + Math.random() * 220;
+      }
+      // Advance notes and drop expired ones.
+      disco.notes = disco.notes.filter(n => (ts - n.startTs) < 1800);
+      for (const n of disco.notes) {
+        n.x += n.vx;
+        n.y += n.vy;
+        n.vy *= 0.992;
+      }
+      setDiscoNotes([...disco.notes]);
+
+      // End — return to idle, clear everything.
+      if (elapsed >= total) {
+        discoRef.current = null;
+        setDiscoProp(null);
+        setDiscoNotes([]);
+        if (stateRef.current === 'disco_dance') {
+          stateRef.current = 'idle';
+          frameIdxRef.current = 0;
+          loopCycleRef.current = 0;
+          setDisplayRot(0);
+        }
+      }
+    }
+
     // ── Jump-down windup / launch ─────────────────────────────────────────
     if (stateRef.current === 'jump_down') {
       if (frameIdxRef.current < 4) {
@@ -1182,6 +1473,7 @@ export default function DesktopPet({ visible, speedMultiplier = 1, windowRect = 
     } else if (stateRef.current === 'jump_down' && jumpLaunchedRef.current) {
       vel.y = Math.min(vel.y + 0.4, 10);
     }
+    // balloon_float handles its own vel.y in the balloon block above — skip any residual floor snap.
 
     // ── Apply velocity ────────────────────────────────────────────────────
     pos.x += vel.x * speedMulRef.current;
@@ -1189,6 +1481,7 @@ export default function DesktopPet({ visible, speedMultiplier = 1, windowRect = 
 
     // ── Floor collision ───────────────────────────────────────────────────
     const isClimbing = ['climb_up', 'top_walk', 'climb_down', 'climb_prep', 'ufo_caught'].includes(stateRef.current);
+    const isFloating = stateRef.current === 'balloon_float';
 
     // Resolve effective floor: the window titlebar wins over the world floor
     // when the sheep is horizontally above it and either (a) already standing
@@ -1242,7 +1535,7 @@ export default function DesktopPet({ visible, speedMultiplier = 1, windowRect = 
       }
     }
 
-    if (!isClimbing && pos.y >= floorY) {
+    if (!isClimbing && !isFloating && pos.y >= floorY) {
       pos.y = floorY;
       vel.y = 0;
       const landed = stateRef.current === 'fall'
@@ -1328,6 +1621,9 @@ export default function DesktopPet({ visible, speedMultiplier = 1, windowRect = 
       const totalDeg = stateRef.current === 'spin' ? 360 : 720;
       const p = Math.min(1, (ts - rotStartTsRef.current) / DURATION);
       setDisplayRot(p * totalDeg * dirRef.current);
+    } else if (stateRef.current === 'disco_dance') {
+      // Continuous dance spin — ~360° every 900ms.
+      setDisplayRot(((ts - rotStartTsRef.current) * 0.4 * dirRef.current) % 360);
     } else {
       setDisplayRot(0);
     }
@@ -1470,6 +1766,9 @@ export default function DesktopPet({ visible, speedMultiplier = 1, windowRect = 
         flowerRef.current = f;
         setFlower(f);
       },
+      balloon:    triggerBalloon,
+      disco:      triggerDisco,
+      mushroom:   spawnMushroom,
       jump:       () => window.dispatchEvent(new CustomEvent('sheep-jump')),
       random:     triggerSpecialEvent,
       getBounds:  () => ({ x: posRef.current.x, y: posRef.current.y, w: RENDER_W, h: RENDER_H }),
@@ -1501,9 +1800,12 @@ export default function DesktopPet({ visible, speedMultiplier = 1, windowRect = 
     console.log('  sheep.lookDown()   — inspect the ground');
     console.log('  sheep.turnAround() — pivot to face the other way');
     console.log('  sheep.jumpDown()   — windup + leap (landing intensity varies with drop height)');
+    console.log('  sheep.balloon()    — grab a balloon and float');
+    console.log('  sheep.disco()      — disco ball descends, sheep dances');
+    console.log('  sheep.mushroom()   — spawn a mushroom (eat = trippy walk)');
     console.log('  sheep.random()     — random special event');
     return () => { delete (window as any).sheep; };
-  }, [visible, triggerBurn, triggerBoing, triggerClimb, triggerBlacksheep, triggerUFO, triggerAlienEncounter, triggerPooState, triggerSpecialEvent, triggerPee, triggerQuirk, triggerMovementQuirk, triggerJumpDown]);
+  }, [visible, triggerBurn, triggerBoing, triggerClimb, triggerBlacksheep, triggerUFO, triggerAlienEncounter, triggerPooState, triggerSpecialEvent, triggerPee, triggerQuirk, triggerMovementQuirk, triggerJumpDown, triggerBalloon, triggerDisco, spawnMushroom]);
 
   // Special events timer
   useEffect(() => {
@@ -1559,6 +1861,11 @@ export default function DesktopPet({ visible, speedMultiplier = 1, windowRect = 
 
   return (
     <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 15000, overflow: 'hidden' }}>
+
+      {/* Mushroom — 8 growth/bite frames. Renders under sheep layer. */}
+      {mushroom && (
+        <div style={scmpooStyle(scmpooMushroom, mushroom.frame, mushroom.x, mushroom.y, 1)} />
+      )}
 
       {/* Flower — scmpoo110 frames 5-8 (4 bite stages), 1× scale to match sheep size */}
       {flower && (
@@ -1626,11 +1933,18 @@ export default function DesktopPet({ visible, speedMultiplier = 1, windowRect = 
               ? 'drop-shadow(0 2px 4px rgba(0,0,0,0.4)) hue-rotate(320deg) saturate(1.6)'
               : stateRef.current === 'amazed'
               ? 'drop-shadow(0 2px 4px rgba(0,0,0,0.4)) brightness(1.15) saturate(1.3)'
+              : stateRef.current === 'trippy_walk'
+              ? `drop-shadow(0 2px 4px rgba(0,0,0,0.4)) hue-rotate(${((performance.now() - trippyStartTsRef.current) / 6) % 360}deg) saturate(1.6) contrast(1.1)`
+              : stateRef.current === 'disco_dance'
+              ? 'drop-shadow(0 0 8px rgba(255,255,255,0.5)) drop-shadow(0 2px 4px rgba(0,0,0,0.4))'
               : 'drop-shadow(0 2px 4px rgba(0,0,0,0.4))',
             transform: [
               displayDir === 1 ? 'scaleX(-1)' : '',
               extraTransform,
               displayRot !== 0 ? `rotate(${displayRot}deg)` : '',
+              stateRef.current === 'trippy_walk'
+                ? `translateY(${Math.sin((performance.now() - trippyStartTsRef.current) / 180) * 3}px)`
+                : '',
             ].filter(Boolean).join(' ') || 'none',
           },
         )}
@@ -1685,6 +1999,36 @@ export default function DesktopPet({ visible, speedMultiplier = 1, windowRect = 
           filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))',
         }} />
       )}
+
+      {/* Balloon prop — renders above sheep on the string */}
+      {balloonProp && (
+        <div style={{
+          ...scmpooStyle(scmpooBalloon, balloonProp.frame, balloonProp.x, balloonProp.y, 1),
+          filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.35))',
+        }} />
+      )}
+
+      {/* Disco ball — renders above everything. Hangs from top, centred above sheep */}
+      {discoProp && (
+        <div style={{
+          ...scmpooStyle(scmpooDisco, discoProp.frame, discoProp.x, discoProp.y, 1),
+          filter: 'drop-shadow(0 0 6px rgba(200,220,255,0.6))',
+        }} />
+      )}
+
+      {/* Music notes — floating DOM particles driven by discoRef tick */}
+      {discoNotes.map((n, i) => {
+        const age = Math.max(0, (performance.now() - n.startTs)) / 1800;
+        const tint = ['#ff5fa8', '#5fb8ff', '#ffd155', '#8aff9c'][n.kind % 4];
+        return (
+          <div key={i} style={{
+            ...scmpooStyle(scmpooDisco, 6 + (n.kind % 4), n.x, n.y, 1),
+            opacity: Math.max(0, 1 - age),
+            filter: `drop-shadow(0 0 3px ${tint})`,
+            transform: `scale(${0.9 + age * 0.4})`,
+          }} />
+        );
+      })}
     </div>
   );
 }
