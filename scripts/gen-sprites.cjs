@@ -428,68 +428,105 @@ function makeDiscoSheet() {
 }
 
 // ── Mushroom sheet ───────────────────────────────────────────────────────
-// Classic spotted mushroom with 4 growth stages, 3 eaten stages, sparkles.
+// Chunky spotted mushroom — fills most of the 40x40 cell.
 // 0-3: grow. 4-6: eaten. 7: gone. 8-11: sparkles (4 kinds). 12-15: spare.
 function drawMushroom(c, stage) {
   const cx = 20, baseY = 38; // ground line
   if (stage === 0) {
     // Sprout: just stem poking up, tiny cap dot
-    c.rect(cx - 1, baseY - 4, 2, 4, STEM_TAN);
-    c.set(cx - 2, baseY - 4, STEM_SHADE[0], STEM_SHADE[1], STEM_SHADE[2]);
-    c.set(cx + 1, baseY - 4, STEM_SHADE[0], STEM_SHADE[1], STEM_SHADE[2]);
-    c.set(cx - 1, baseY - 5, CAP_RED[0], CAP_RED[1], CAP_RED[2]);
-    c.set(cx,     baseY - 5, CAP_RED[0], CAP_RED[1], CAP_RED[2]);
-    // Grass tufts at base
+    c.rect(cx - 1, baseY - 6, 2, 6, STEM_TAN);
+    c.set(cx - 2, baseY - 6, STEM_SHADE[0], STEM_SHADE[1], STEM_SHADE[2]);
+    c.set(cx + 1, baseY - 6, STEM_SHADE[0], STEM_SHADE[1], STEM_SHADE[2]);
+    c.rect(cx - 1, baseY - 8, 3, 2, CAP_RED);
+    c.set(cx - 1, baseY - 8, WHITE[0], WHITE[1], WHITE[2]);
     c.set(cx - 4, baseY, GRASS[0], GRASS[1], GRASS[2]);
     c.set(cx + 4, baseY, GRASS[0], GRASS[1], GRASS[2]);
   } else if (stage === 1) {
     // Small — cap half-grown
-    drawMushroomStem(c, cx, baseY, 3, 6);
-    drawMushroomCap(c, cx, baseY - 6, 5, 3, 2);
+    drawMushroomStem(c, cx, baseY, 4, 12);
+    drawMushroomCap(c, cx, baseY - 12, 8, 5, 3);
   } else if (stage === 2) {
     // Medium
-    drawMushroomStem(c, cx, baseY, 4, 8);
-    drawMushroomCap(c, cx, baseY - 8, 7, 4, 3);
+    drawMushroomStem(c, cx, baseY, 6, 18);
+    drawMushroomCap(c, cx, baseY - 18, 12, 8, 4);
   } else if (stage === 3) {
-    // Full size
-    drawMushroomStem(c, cx, baseY, 5, 10);
-    drawMushroomCap(c, cx, baseY - 10, 9, 5, 4);
+    // Full size — tall stem, chunky cap
+    drawMushroomStem(c, cx, baseY, 9, 23);
+    drawMushroomCap(c, cx, baseY - 23, 16, 11, 5);
   } else if (stage === 4) {
-    // Bitten once — chunk from right side
-    drawMushroomStem(c, cx, baseY, 5, 10);
-    drawMushroomCap(c, cx, baseY - 10, 9, 5, 4);
-    // Chomp cut-out on right
-    for (let dy = -2; dy <= 1; dy++) for (let dx = 4; dx <= 9; dx++) {
-      c.set(cx + dx, baseY - 10 + dy, 0, 0, 0, 0);
-    }
+    // Bitten once — big rounded scoop from the right side of cap
+    drawMushroomStem(c, cx, baseY, 9, 23);
+    drawMushroomCap(c, cx, baseY - 23, 16, 11, 5);
+    scoopOutBite(c, cx + 11, baseY - 24, 7);
+    // A couple of crumbs below the bite mark
+    c.set(cx + 12, baseY - 4, CAP_RED[0], CAP_RED[1], CAP_RED[2]);
+    c.set(cx + 14, baseY - 2, CAP_RED[0], CAP_RED[1], CAP_RED[2]);
+    c.set(cx + 10, baseY - 1, CAP_RED[0], CAP_RED[1], CAP_RED[2]);
   } else if (stage === 5) {
-    // Bitten twice — chunks from both sides
-    drawMushroomStem(c, cx, baseY, 5, 10);
-    drawMushroomCap(c, cx, baseY - 10, 9, 5, 4);
-    for (let dy = -2; dy <= 1; dy++) {
-      for (let dx = 4; dx <= 9; dx++) c.set(cx + dx, baseY - 10 + dy, 0, 0, 0, 0);
-      for (let dx = -9; dx <= -4; dx++) c.set(cx + dx, baseY - 10 + dy, 0, 0, 0, 0);
-    }
+    // Bitten twice — scoops from both sides, cap noticeably smaller on top
+    drawMushroomStem(c, cx, baseY, 9, 23);
+    drawMushroomCap(c, cx, baseY - 23, 16, 11, 5);
+    scoopOutBite(c, cx + 11, baseY - 24, 8);
+    scoopOutBite(c, cx - 11, baseY - 24, 8);
+    // Take a nibble off the top too
+    scoopOutBite(c, cx, baseY - 35, 5);
+    // Crumbs scattered both sides
+    c.set(cx + 13, baseY - 3, CAP_RED[0], CAP_RED[1], CAP_RED[2]);
+    c.set(cx - 13, baseY - 3, CAP_RED[0], CAP_RED[1], CAP_RED[2]);
+    c.set(cx + 11, baseY - 1, CAP_RED[0], CAP_RED[1], CAP_RED[2]);
+    c.set(cx - 10, baseY - 1, CAP_RED[0], CAP_RED[1], CAP_RED[2]);
   } else if (stage === 6) {
-    // Stem only + a few crumbs
-    drawMushroomStem(c, cx, baseY, 5, 10);
-    c.set(cx - 3, baseY - 11, CAP_RED[0], CAP_RED[1], CAP_RED[2]);
-    c.set(cx + 2, baseY - 11, CAP_RED[0], CAP_RED[1], CAP_RED[2]);
-    c.set(cx,     baseY - 12, CAP_RED[0], CAP_RED[1], CAP_RED[2]);
+    // Mostly gone — stem with a chewed-flat top; a few cap crumbs on the ground
+    drawMushroomStem(c, cx, baseY, 9, 23);
+    // "Chewed" uneven top on the stem
+    for (let dx = -4; dx <= 4; dx++) {
+      const jitter = ((dx * 7) & 1) ? 0 : 1;
+      c.set(cx + dx, baseY - 23 - jitter, OUTLINE[0], OUTLINE[1], OUTLINE[2]);
+    }
+    // Crumbs scattered on the ground
+    const crumbs = [[-10, -2], [-6, -1], [-2, 0], [4, -1], [9, 0], [12, -2], [-12, 0]];
+    for (const [dx, dy] of crumbs) {
+      c.set(cx + dx, baseY + dy, CAP_RED[0], CAP_RED[1], CAP_RED[2]);
+    }
+    // A stray white spot fragment
+    c.set(cx - 3, baseY - 3, WHITE[0], WHITE[1], WHITE[2]);
+    c.set(cx + 5, baseY - 2, WHITE[0], WHITE[1], WHITE[2]);
   } else if (stage === 7) {
     // Gone — a few sparkles where the mushroom was
-    c.set(cx - 4, baseY - 10, SPARK[0], SPARK[1], SPARK[2]);
-    c.set(cx + 4, baseY - 10, SPARK[0], SPARK[1], SPARK[2]);
-    c.set(cx,     baseY - 12, SPARK[0], SPARK[1], SPARK[2]);
-    c.set(cx - 2, baseY - 6,  SPARK[0], SPARK[1], SPARK[2]);
-    c.set(cx + 3, baseY - 4,  SPARK[0], SPARK[1], SPARK[2]);
+    c.set(cx - 6, baseY - 14, SPARK[0], SPARK[1], SPARK[2]);
+    c.set(cx + 6, baseY - 14, SPARK[0], SPARK[1], SPARK[2]);
+    c.set(cx,     baseY - 20, SPARK[0], SPARK[1], SPARK[2]);
+    c.set(cx - 3, baseY - 8,  SPARK[0], SPARK[1], SPARK[2]);
+    c.set(cx + 4, baseY - 5,  SPARK[0], SPARK[1], SPARK[2]);
   }
   // Ground accent beneath (grass tufts) for stages 1-6
   if (stage >= 1 && stage <= 6) {
-    c.set(cx - 6, baseY, GRASS[0], GRASS[1], GRASS[2]);
-    c.set(cx - 5, baseY - 1, GRASS_HI[0], GRASS_HI[1], GRASS_HI[2]);
-    c.set(cx + 6, baseY, GRASS[0], GRASS[1], GRASS[2]);
-    c.set(cx + 5, baseY - 1, GRASS_HI[0], GRASS_HI[1], GRASS_HI[2]);
+    c.set(cx - 11, baseY, GRASS[0], GRASS[1], GRASS[2]);
+    c.set(cx - 10, baseY - 1, GRASS_HI[0], GRASS_HI[1], GRASS_HI[2]);
+    c.set(cx + 11, baseY, GRASS[0], GRASS[1], GRASS[2]);
+    c.set(cx + 10, baseY - 1, GRASS_HI[0], GRASS_HI[1], GRASS_HI[2]);
+  }
+}
+
+// Round bite scoop — clears pixels within a circle and draws a jagged teeth edge
+function scoopOutBite(c, cx, cy, radius) {
+  const r2 = radius * radius;
+  for (let dy = -radius; dy <= radius; dy++) {
+    for (let dx = -radius; dx <= radius; dx++) {
+      if (dx*dx + dy*dy <= r2) c.set(cx + dx, cy + dy, 0, 0, 0, 0);
+    }
+  }
+  // Jagged teeth-like outline along the scoop edge — add outline dots just outside the circle
+  const edgePoints = [];
+  for (let deg = 0; deg < 360; deg += 14) {
+    const a = deg * Math.PI / 180;
+    const rr = radius + (deg % 28 === 0 ? 0 : -1);
+    const px = Math.round(cx + Math.cos(a) * rr);
+    const py = Math.round(cy + Math.sin(a) * rr);
+    edgePoints.push([px, py]);
+  }
+  for (const [px, py] of edgePoints) {
+    c.set(px, py, OUTLINE[0], OUTLINE[1], OUTLINE[2]);
   }
 }
 

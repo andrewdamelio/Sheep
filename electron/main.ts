@@ -358,41 +358,7 @@ ipcMain.on('smp:open-prefs', () => createPrefsWindow());
 
 ipcMain.on('smp:show-sheep-menu', () => {
   if (!overlayAlive()) return;
-  const summonItem = (label: string, action: SummonAction) => ({
-    label,
-    click: () => sendToRenderer('smp:summon', action),
-  });
   const menu = Menu.buildFromTemplate([
-    summonItem('Jump', 'jump'),
-    summonItem('Random event ✨', 'random'),
-    { type: 'separator' },
-    {
-      label: 'Summon',
-      submenu: [
-        summonItem('Set on fire 🔥', 'burn'),
-        summonItem('Boing!', 'boing'),
-        summonItem('Climb edge', 'climb'),
-        summonItem('UFO abduction', 'ufo'),
-        summonItem('Alien encounter', 'alien'),
-        summonItem('Black sheep', 'blacksheep'),
-        summonItem('Spawn flower', 'flower'),
-        summonItem('Grab a balloon 🎈', 'balloon'),
-        summonItem('Disco dance 🪩', 'disco'),
-        summonItem('Spawn mushroom 🍄', 'mushroom'),
-        summonItem('Pee 💦', 'pee'),
-      ],
-    },
-    {
-      label: 'Movement',
-      submenu: [
-        summonItem('Spin', 'spin'),
-        summonItem('Roll', 'rollMove'),
-        summonItem('Look down 👀', 'lookDown'),
-        summonItem('Turn around', 'turnAround'),
-        summonItem('Jump down 🦘', 'jumpDown'),
-      ],
-    },
-    { type: 'separator' },
     { label: 'Hide Sheep', click: () => setSheepVisible(false) },
     { label: 'Preferences…', click: () => createPrefsWindow(), accelerator: 'Cmd+,' },
     { type: 'separator' },

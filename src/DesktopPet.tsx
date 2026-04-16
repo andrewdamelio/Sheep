@@ -941,7 +941,7 @@ export default function DesktopPet({ visible, speedMultiplier = 1, windowRect = 
     velRef.current.y = -2.6;
     frameIdxRef.current = 0;
     loopCycleRef.current = 0;
-    window.sheepSay?.say({ text: 'wheee—', emoji: '🎈', tint: 'neutral', durationMs: 2800 });
+    window.sheepSay?.say({ text: 'wheee—', emoji: '🎈', tint: 'neutral', durationMs: 1200 });
   }, []);
 
   const triggerDisco = useCallback(() => {
@@ -977,7 +977,7 @@ export default function DesktopPet({ visible, speedMultiplier = 1, windowRect = 
     const W = window.innerWidth;
     const H = window.innerHeight;
     const x = RENDER_W + Math.random() * (W - RENDER_W * 3);
-    const y = H - RENDER_H;
+    const y = H - RENDER_H + Math.round(S_FH * 0.375);
     const m = { x, y, frame: 0 };
     mushroomRef.current = m;
     setMushroom(m);
@@ -1376,8 +1376,8 @@ export default function DesktopPet({ visible, speedMultiplier = 1, windowRect = 
       }
       // Balloon prop tracks sheep head.
       const bobY = Math.sin((ts - bal.startTs) / 320) * 2;
-      const propX = Math.round(pos.x + RENDER_W / 2 - S_FW / 2);
-      const propY = Math.round(pos.y - S_FH + 6 + bobY);
+      const propX = Math.round(pos.x + RENDER_W / 2 - S_FW * 2 / 2);
+      const propY = Math.round(pos.y - S_FH * 2 + 6 + bobY);
       let frame: number;
       if (!bal.popped) {
         // Bob cycle alternates between the two bob frames of the chosen color pair.
@@ -1722,7 +1722,7 @@ export default function DesktopPet({ visible, speedMultiplier = 1, windowRect = 
   useEffect(() => {
     if (!visible) return;
     const spawn = () => {
-      if (flowerRef.current) return;
+      if (flowerRef.current || mushroomRef.current) return;
       const x = RENDER_W + Math.random() * (window.innerWidth - RENDER_W * 3);
       const y = window.innerHeight - RENDER_H;
       const f = { x, y, frame: 5 };
@@ -1881,7 +1881,7 @@ export default function DesktopPet({ visible, speedMultiplier = 1, windowRect = 
 
       {/* Mushroom — 8 growth/bite frames. Renders under sheep layer. */}
       {mushroom && (
-        <div style={scmpooStyle(scmpooMushroom, mushroom.frame, mushroom.x, mushroom.y, 1)} />
+        <div style={scmpooStyle(scmpooMushroom, mushroom.frame, mushroom.x, mushroom.y, 0.625)} />
       )}
 
       {/* Flower — scmpoo110 frames 5-8 (4 bite stages), 1× scale to match sheep size */}
@@ -2020,7 +2020,7 @@ export default function DesktopPet({ visible, speedMultiplier = 1, windowRect = 
       {/* Balloon prop — renders above sheep on the string */}
       {balloonProp && (
         <div style={{
-          ...scmpooStyle(scmpooBalloon, balloonProp.frame, balloonProp.x, balloonProp.y, 1),
+          ...scmpooStyle(scmpooBalloon, balloonProp.frame, balloonProp.x, balloonProp.y, 2),
           filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.35))',
         }} />
       )}
