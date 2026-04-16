@@ -1,0 +1,59 @@
+{
+  "name": "screen-mate-poo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Screen Mate Poo, reborn for modern macOS. A desktop sheep lives on top of your apps.",
+  "main": "dist-electron/main.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build && tsc -p electron/tsconfig.json",
+    "start": "electron .",
+    "electron:dev": "concurrently -k \"npm run dev\" \"wait-on http://localhost:5173 && npm run electron:compile && electron . --dev\"",
+    "electron:compile": "tsc -p electron/tsconfig.json",
+    "pack": "npm run build && electron-builder --dir",
+    "dist": "npm run build && electron-builder"
+  },
+  "dependencies": {
+    "active-win": "^8.2.1",
+    "electron-store": "^8.2.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.12",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "concurrently": "^8.2.2",
+    "electron": "^30.0.0",
+    "electron-builder": "^24.13.3",
+    "typescript": "^5.4.5",
+    "vite": "^5.2.11",
+    "wait-on": "^7.2.0"
+  },
+  "build": {
+    "appId": "com.andydrew.screenmatepoo",
+    "productName": "ScreenMatePoo",
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*"
+    ],
+    "directories": {
+      "buildResources": "build",
+      "output": "release"
+    },
+    "mac": {
+      "category": "public.app-category.entertainment",
+      "target": [
+        { "target": "dmg", "arch": ["arm64", "x64"] },
+        { "target": "zip", "arch": ["arm64", "x64"] }
+      ],
+      "identity": null,
+      "extendInfo": {
+        "LSUIElement": true,
+        "NSAppleEventsUsageDescription": "ScreenMatePoo watches which app you're using so the sheep can react.",
+        "NSAccessibilityUsageDescription": "ScreenMatePoo observes frontmost app for sheep reactions."
+      }
+    }
+  }
+}
